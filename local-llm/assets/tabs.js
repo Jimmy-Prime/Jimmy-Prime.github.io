@@ -27,7 +27,7 @@
     window.dispatchEvent(new Event('resize'));
   }
 
-  // 顯示 hash 所在的分頁；hash 是分頁本身（#mac、#pc）或空的就回到最上面
+  // 顯示 hash 所在的分頁；hash 是分頁本身（#mac、#duo）或空的就回到最上面
   function show(hash, scroll) {
     const target = byHash(hash);
     const panel = panelOf(target) || panels[0];

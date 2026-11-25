@@ -210,7 +210,7 @@
   }
 
   function macText(m) {
-    const map = { yes: '✓', no: '✕', main: '△ 只有 main 分支', rc: '△ 只有 rc 版', bug: '△ prompt cache 有 bug', ggufbug: '△ prompt cache 有 bug，高精度 GGUF 讀錯', pr: '△ PR 中', cpu: '△ 主線支援，NVFP4 experts 在 Metal 上退回 CPU' };
+    const map = { yes: '✓', no: '✕', main: '△ 只有 main 分支', rc: '△ 只有 rc 版', bug: '△ prompt cache 有 bug', ggufbug: '△ prompt cache 有 bug，高精度 GGUF 讀錯', pr: '△ PR 中', cpu: '△ 主線支援，NVFP4 experts 在 Metal 上退回 CPU', nvfp4new: '△ 主線支援，Metal 的 NVFP4 kernel 11/23 才進來，沒人驗證' };
     return 'oMLX ' + map[m.mac.omlx] + '　llama.cpp ' + map[m.mac.llamacpp] + '　mlx-lm ' + map[m.mac.mlxlm];
   }
 
@@ -242,7 +242,41 @@
     t.append(tb);
   }
 
-  // ---------- 四個模型並排 ----------
+  // ---------- Benchmark 門檻 ----------
+
+  const GATE_RESULT = { pass: ['rec', '主力候選'], out: ['no', '移出'], pending: ['watch', '待定'] };
+
+  function gateCell(c, text) {
+    const cls = c.ok === true ? 'y' : c.ok === false ? 'n' : 'c';
+    const mark = c.ok === true ? '✓ ' : c.ok === false ? '✕ ' : '';
+    return el('td', { class: cls }, [mark + text, c.note ? el('div', { class: 'note', text: c.note }) : null]);
+  }
+
+  function renderGate() {
+    const g = P.gate;
+    const rules = document.getElementById('gate-rules');
+    g.rules.forEach((r) => rules.append(el('li', null, [el('strong', { text: r.label + '。' }), r.text])));
+    const t = document.getElementById('gate-table');
+    const cols = ['模型', '放得下', 'DeepSWE v1.1 自報', 'DeepSWE（Mercor 重跑）', 'Terminal-Bench 4.1（tbench.ai）', 'Vals Terminal-Bench 4.0', 'Vals Index', '結果'];
+    t.append(el('thead', null, el('tr', null, cols.map((h) => el('th', { scope: 'col', text: h })))));
+    const tb = el('tbody');
+    g.rows.forEach((r) => {
+      const [v, label] = GATE_RESULT[r.result];
+      tb.append(el('tr', { class: r.result === 'pass' ? 'pick' : null }, [
+        el('th', { scope: 'row', text: r.name }),
+        gateCell(r.fit, r.fit.text),
+        gateCell(r.deepswe, r.deepswe.v),
+        el('td', { class: 'num', text: r.mercor }),
+        el('td', { class: 'num', text: r.tb41 }),
+        gateCell(r.vals, r.vals.v),
+        el('td', { class: 'num', text: r.valsIndex }),
+        el('td', null, [el('span', { class: 'verdict', 'data-v': v, text: label }), r.why ? el('div', { class: 'note', text: r.why }) : null]),
+      ]));
+    });
+    t.append(tb);
+  }
+
+  // ---------- 候選模型並排 ----------
 
   function renderMultiples() {
     const box = document.getElementById('multiples');
@@ -271,7 +305,7 @@
     P.segments.forEach((s) => lg.append(el('li', null, [el('span', { class: 'sw', 'data-k': s.key }), s.label])));
     lg.append(el('li', null, [el('span', { class: 'sw', 'data-k': 'reserve' }), '留給 macOS']));
     box.append(lg);
-    if (anySsd) box.append(el('p', { class: 'note', text: '細線是 GPU 可用上限（472 GiB）。DeepSeek 的 Engram 查表放在 SSD，不算在 RAM 內。' }));
+    if (anySsd) box.append(el('p', { class: 'note', text: '細線是 GPU 可用上限（' + wired + ' GiB）。DeepSeek 的 Engram 查表放在 SSD，不算在 RAM 內。' }));
   }
 
   // ---------- 量化表 ----------
@@ -495,6 +529,7 @@
   renderHero();
   renderModelRows();
   renderModelTable();
+  renderGate();
   renderMultiples();
   renderQuantTable();
   renderSpeed();

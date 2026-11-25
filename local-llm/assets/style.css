@@ -477,7 +477,7 @@ tr.pick > th:first-child { box-shadow: inset 3px 0 0 var(--accent); padding-left
 table.servers, table.spec-table, table.hybrid, table.measured { min-width: 860px; }
 table.compare { min-width: 760px; }
 table.servers td:last-child { min-width: 17em; }
-table.servers td:nth-child(8) { min-width: 7.5em; }
+table.servers td:nth-child(6) { min-width: 7.5em; }
 table.spec-table td:last-child, table.hybrid td:last-child { min-width: 14em; }
 table.compare tbody th { width: 9em; color: var(--ink-2); font-weight: 600; }
 table.compare thead th { color: var(--ink); font-size: 14px; white-space: normal; }
@@ -686,3 +686,10 @@ html { scroll-padding-top: calc(72px + var(--tabs-h)); }
   .site-tabs-inner { padding: 0 32px; }
   .toc { top: var(--tabs-h); height: calc(100vh - var(--tabs-h)); padding-top: 32px; }
 }
+
+/* Benchmark 門檻表（2026-11-26） */
+table.gate { min-width: 1120px; }
+table.gate tbody th { min-width: 9.5em; }
+table.gate td:nth-child(2) { min-width: 8.5em; }
+table.gate td:nth-child(3) { min-width: 8em; }
+table.gate td:last-child { min-width: 18em; }

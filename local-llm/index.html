@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>本機 LLM 規劃：M5 Ultra、兩台串聯與自組 PC</title>
-<meta name="description" content="M5 Ultra 512GB 和同預算自組 PC 跑本機 LLM 的規劃：模型、量化、server、硬體配置與速度推估。">
+<title>本機 LLM 規劃：M5 Ultra、兩台串聯、M1 Pro 與 3060 Ti</title>
+<meta name="description" content="M5 Ultra 512GB 跑本機 LLM 的規劃：benchmark 門檻、候選模型、量化、server 與速度推估，加上兩台串聯、M1 Pro 32GB 筆電和 RTX 3060 Ti 小機殼能跑什麼。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap">
@@ -22,7 +22,7 @@
     <div class="tab-list" role="tablist" aria-label="方案">
       <button type="button" role="tab" id="tab-mac" aria-controls="mac" aria-selected="true">M5 Ultra 512GB</button>
       <button type="button" role="tab" id="tab-duo" aria-controls="duo" aria-selected="false" tabindex="-1">兩台 M5 Ultra 256GB</button>
-      <button type="button" role="tab" id="tab-pc" aria-controls="pc" aria-selected="false" tabindex="-1">自組 PC</button>
+      <button type="button" role="tab" id="tab-m1p" aria-controls="m1p" aria-selected="false" tabindex="-1">M1 Pro 32GB</button>
       <button type="button" role="tab" id="tab-sff" aria-controls="sff" aria-selected="false" tabindex="-1">3060 Ti 小機殼</button>
     </div>
     <button class="theme-toggle" type="button" aria-label="切換深淺色">切換深淺色</button>
@@ -36,7 +36,8 @@
     <ol>
       <li><a href="#summary">結論</a></li>
       <li><a href="#assumptions">硬體與前提</a></li>
-      <li><a href="#models">四個模型</a></li>
+      <li><a href="#models">主力候選</a></li>
+      <li><a href="#gate">Benchmark 門檻</a></li>
       <li><a href="#memory">記憶體配置</a></li>
       <li><a href="#quant">量化</a></li>
       <li><a href="#unsloth">Unsloth Dynamic v3.1</a></li>
@@ -56,10 +57,10 @@
   <main id="main">
 
   <header id="summary" class="hero">
-    <p class="hero-meta">資料整理於 2026 年 10 月 20 日，<time datetime="2026-11-19">11 月 19 日</time>更新。M5 Ultra 512GB 10 月 29 日才在台灣開放選配，訂單標 10–12 週，大約 2027 年 1 月到貨；台灣售價 NT$805,400（2TB SSD）。同樣預算的兩台 256GB 串聯見<a href="#duo">兩台 M5 Ultra 256GB 分頁</a>，自組 PC 見<a href="#pc">自組 PC 分頁</a>，手上那台 RTX 3060 Ti 小機殼能做什麼見<a href="#sff">3060 Ti 小機殼分頁</a></p>
+    <p class="hero-meta">資料整理於 2026 年 10 月 20 日，<time datetime="2026-11-26">11 月 26 日</time>更新。M5 Ultra 512GB 10 月 29 日才在台灣開放選配，訂單標 10–12 週，大約 2027 年 1 月到貨；台灣售價 NT$805,400（2TB SSD）。同樣預算的兩台 256GB 串聯見<a href="#duo">兩台 M5 Ultra 256GB 分頁</a>，公司的 M1 Pro 32GB 筆電能跑哪些小模型見 <a href="#m1p">M1 Pro 32GB 分頁</a>，手上那台 RTX 3060 Ti 小機殼能做什麼見<a href="#sff">3060 Ti 小機殼分頁</a>。同預算自組 PC 的分頁 11/26 移除</p>
     <h1>M5 Ultra 512GB<br>本機 LLM 規劃</h1>
     <p class="lead">
-      Coding agent 和長文件分析最吃 prefill 跟 prompt cache。主力先用 <strong>DeepSeek V4.1 Flash 1017</strong>：experts 和 Engram 查表都維持官方精度不重新量化，Engram 放 SSD，用 oMLX 0.8.0 以上跑 DSpark，CED prefill 0.8.0 起預設開啟。這樣開到原生 1M context，RAM 內的模型也只佔約 290 GiB，還能留 64 GiB 給 prompt cache。512GB 的社群上傳（11/13–11/14，跟這頁的配置相同：Engram 放 SSD、CED 開、A8 關）32K–195K 是 3,525–3,995；另一位上傳者（含唯一一筆 0.8.0 正式版）只有 3,009–3,180，原因不明，所以 prefill 取 3,000–3,900 tok/s。
+      Coding agent 和長文件分析最吃 prefill 跟 prompt cache。主力先用 <strong>DeepSeek V4.1 Flash 1017</strong>：experts 和 Engram 查表都維持官方精度不重新量化，Engram 放 SSD，用 oMLX 0.8.0 以上跑 DSpark，CED prefill 0.8.0 起預設開啟。這樣開到原生 1M context，RAM 內的模型也只佔約 290 GiB，還能留 64 GiB 給 prompt cache。512GB 的社群上傳（跟這頁的配置相同：CED 開、A8 關）到 11/25 已有十幾個 session，32K–195K 一直分成兩群：快的 3,525–4,060、慢的 3,009–3,335，正式版 0.8.0–0.8.3 兩群都有，原因不明，所以 prefill 取 3,000–4,050 tok/s。11/26 起主力候選先過一道 <a href="#gate">benchmark 門檻</a>（DeepSWE 自報 ≥ 70，第三方分數不能低於領先者的一半），只剩 DeepSeek 和 MiniMax M3.1 Flash；GLM-5.3-Flash、Qwen3.8-Flash-Next 移出主力，新的 Inkling 2 Small 放得下但第三方分數和 prefill 都太差，不列入。
     </p>
 
     <figure class="map-figure">
@@ -73,10 +74,10 @@
     <dl class="decisions">
       <div><dt>主力模型</dt><dd>DeepSeek V4.1 Flash 1017（MIT，原生 1M context）</dd></div>
       <div><dt>量化</dt><dd>mlx-community oQ4e-ngram-mtp：experts 原生 MXFP4，Engram 保留官方 FP8 放 SSD，其餘 8-bit</dd></div>
-      <div><dt>Server</dt><dd>oMLX 0.8.0 以上（到貨時用最新正式版）；DwarfStar（ds4）當 DeepSeek 備案，llama.cpp 當對照基準</dd></div>
+      <div><dt>Server</dt><dd>oMLX 0.8.0 以上（到貨時用最新正式版，11/26 是 0.8.3）；DwarfStar（ds4）當 DeepSeek 備案，llama.cpp 當對照基準</dd></div>
       <div><dt>加速</dt><dd>Decode 用 DSpark speculative decoding（lossless；oMLX 0.7.1 起 greedy 輸出跟不開時逐 token 相同）。Prefill 用 CED：後 20 層只算最後 128 個 token，跟 DeepSeek 線上的做法相同；0.8.0 起預設開（0.7.3 要手動開）。A8 prefill 是 lossy，0.8.0 起預設關閉，標「May reduce quality」</dd></div>
-      <div><dt>備選</dt><dd>要最快讀完大量文件：Qwen3.8-Flash-Next 8-bit。要最穩的工具鏈：GLM-5.3-Flash 8-bit。要 HLE 和長 context 分數：MiniMax M3.1 Flash 官方 NVFP4</dd></div>
-      <div><dt>還在等</dt><dd>Engram 放 SSD 的主力配置在 0.8.0 正式版、256K–1M 的 prefill（上傳只到 195K，0.8.0 正式版只有一筆、偏慢）；llama.cpp 的 #30944 在 Metal 上驗證（11/14 有人在 CUDA 上驗證修好，issue 還開著）；MiniMax 官方權重在 M5 Ultra 上的實測</dd></div>
+      <div><dt>第二候選</dt><dd>MiniMax M3.1 Flash 官方 NVFP4（QAT 原始權重 252 GB，HLE 和長 context 分數高；第三方分數是通過門檻的兩個裡比較弱的，授權預設非商用）。兩個都出問題時，GLM-5.3-Flash 8-bit 是第一個備援</dd></div>
+      <div><dt>還在等</dt><dd>256K–1M 的 prefill（上傳最長只到 195K），以及 32K–195K 快、慢兩群的原因；llama.cpp 的 #30944 在 Metal 上驗證（11/14 有人在 CUDA 上驗證修好，issue 還開著）；MiniMax 官方權重在 M5 Ultra 上的實測（512GB 上到 11/26 一筆都沒有）</dd></div>
     </dl>
     <p class="note">M5 Ultra 512GB 的公開數字都是社群自行回報：oMLX benchmark 11/9 起每天都有（11/12 起 leaderboard 會標出 CED、A8、MTP，detail 頁有完整設定）、TensorFold、一份 GLM 的 1M 測試，沒有媒體評測，見<a href="#speed">速度</a>的「其他實測」。頁面上標成「推估」的數字都要等到貨後驗證，標成「實測」的多半來自 256GB 版本（頻寬一樣是 1.2 TB/s）。Apple 子公司 Claris 11/10 曝光的 Harbor（Mac 本機推論 server，Thunderbolt 5 自動組叢集）還在 private preview，見<a href="#hybrid">混合部署</a>。各次更新見<a href="#changelog">更新紀錄</a>。</p>
   </header>
@@ -127,19 +128,43 @@
   </section>
 
   <section id="models">
-    <h2>四個模型</h2>
-    <p class="measure">四個都是 MoE，也都用了稀疏或線性注意力，所以 KV cache 都比傳統模型小很多。差別主要在權重大小、分數和工具鏈成熟度。</p>
+    <h2>主力候選</h2>
+    <p class="measure">11/26 起先用<a href="#gate">benchmark 門檻</a>篩過，主力候選只剩兩個：DeepSeek V4.1 Flash 1017 和 MiniMax M3.1 Flash。兩個都是 MoE，官方權重本身就是低 bit（MXFP4、NVFP4 experts），原精度就放得進 512GB。差別在 KV 大小、prefill 速度和工具鏈成熟度。GLM-5.3-Flash 和 Qwen3.8-Flash-Next 的 DeepSWE 不到 70，移出主力；它們的數字和還能做什麼，見下一節。</p>
     <div class="model-cards" id="model-cards"></div>
     <div class="table-wrap">
       <table class="compare" id="model-table"></table>
     </div>
-    <p class="note">分數都是各家自己公布的，跑分環境不一定一樣，只能看大概，空白代表官方沒有公布這一項。第三方 Vals 量到 DeepSeek 的 Terminal-Bench 4.0 只有 31.8（官方用 Claude Code harness 是 42.3），差距不小。第三方 Terminal-Bench 4.1（Claude Code harness）DeepSeek 38.5、GLM 37.0。</p>
-    <p class="note">最近釋出、看過但不列入候選的：Reflection Beam-1.0（501B／23B active，Apache-2.0，DeepSWE 只有 43.3，還沒有 MLX 版）、Meta Muse Spark Open（816B／42B active，單台 512GB 只放得下 3-bit 的 oQ3e 371 GB）、Mistral Large 4（1T／52B active，10/29 釋出，llama.cpp 主線當天支援；MLX 3-bit 459.3 GB 放得下但很緊，精度卡在 3 bpw 的邊界，4-bit 590 GB 放不下；官方 Terminal-Bench 4.0 41%，沒有 DeepSWE；mlx-vlm 0.7.12 起支援）、Recursive Flint（40B，太小）。10/31 之後：Ripple-65B Preview（65B dense，Apache-2.0，DeepSWE 1.1 只有 44.3，dense 每個 token 都要讀全部權重，decode 推估只有 15–18 tok/s）、Kimi-K3.1-Pro（2.78T）和 LongCat-2.5（1.78T）放不下。11/12 之後：Inkling 2 Small（594B／17B active，Apache-2.0，DeepSWE 72.1、LongBench v2 70.6；oMLX 0.8.0 已支援，但 M5 上沒有數字，官方 NVFP4 放進 512GB 後 prompt cache 空間少，列入觀察，是 MiniMax 位置的潛在替代）、Hy4 flash（220B／11.3B active，DeepSWE 64.6，Tencent 自己不建議拿來做長時程寫程式；第三方 Vals Terminal-Bench 4.0 只有 15.2）、Sage S2.1 Flash（GLM-5.3-Flash 的科學向微調，DeepSWE 67.9）。11/20：Tencent Hy4（770B／49B active，1M context，Tencent Hy License，自用不受限）的 agentic coding 跟 DeepSeek 大致打平：Vals Terminal-Bench 4.0 39.4 對 31.8、tbench.ai 4.1 37.9 對 38.5、Vals Index 59.4 對 61.3。但官方 FP8 786 GB 放不下，512GB 上只能跑 oMLX 的 oQ4h（452 GB，約 4.6 bit，沒有 KL）；KV 每 token 約 93 KiB，是 DeepSeek 的約 30 倍，256K 時 prompt cache 只剩約 25–30 GiB，1M 放不下 <span class="conf" data-c="e">推估</span>；M5 Ultra 512GB 上 4K prompt 的 prefill 654、decode 20 tok/s，同一天 DeepSeek 是 1,193 和 57–80 <span class="conf" data-c="r">社群回報</span>。能跑的只有 oMLX 0.8.1，作者也還沒在 M5 上跑過完整流程，所以不列入。</p>
+    <p class="note">表裡的分數都是各家自己公布的，跑分環境不一定一樣，只能看大概，空白代表官方沒有公布這一項。第三方的分數見<a href="#gate">下一節</a>：Vals 的 Terminal-Bench 4.0 DeepSeek 31.8、MiniMax 25.3（都用 mini-swe-agent），tbench.ai 的 Terminal-Bench 4.1 DeepSeek 38.5（Claude Code harness），MiniMax 沒有。</p>
+  </section>
+
+  <section id="gate">
+    <h2>Benchmark 門檻</h2>
+    <p class="measure">這頁的主要用途是 Claude Code 這類長時程、改很多檔案的 coding agent，所以用 DeepSWE v1.1 當主要的尺。它是 Datacurve 做的 113 題軟體工程任務（91 個 repo、5 種語言），題目從頭寫起避免訓練資料污染，verifier 看行為、不看實作。問題是它沒有一個涵蓋這些開放模型的獨立榜：Datacurve 官方榜停在 9/22，Mercor 只重跑了幾個；Epoch AI 評它「Flawed」，113 題裡至少 23 題會把對的解判成錯；別家重跑同一個模型會差 3–6 分，95% 信賴區間約 ±6–7。所以門檻只做粗篩，再加一把第三方的尺，專門抓「自報很高、換一把尺就掉到三分之一」的模型 <span class="conf" data-c="r">社群回報</span>。</p>
+    <ol class="principles" id="gate-rules"></ol>
+    <div class="table-wrap">
+      <table class="hybrid gate" id="gate-table"></table>
+    </div>
+    <p class="note">DeepSWE 自報多半用 mini-swe-agent，但版本從 2.4.2 到 2.4.6 不等；Qwen 是 Claude Code 和 mini-swe-agent 兩種 harness 取高；Mistral、MiMo、Beam、Muse 沒寫 harness。Mercor 的 DeepSeek 沒標是不是 1017 版。Vals 的 Terminal-Bench 4.0 全部用 mini-swe-agent，是同一把尺；tbench.ai 的 Terminal-Bench 4.1 由各家自選 harness 和 effort，括號裡是 harness。Vals Index 是 11/21 的 v2.2，每個模型都比 11/19 低 1.5–2.4 分（原因不明），Hy4 對 DeepSeek 從 59.4 對 61.3 變成 57.9 對 59.7。70 和 20 這兩條線都在誤差範圍附近，MiMo、Sage 的 67.9 只差 2 分；之後新模型的自報分數落在 68–72 時，要等第三方數字再判斷。研究筆記在 <code>research_notes/2026-11-26 全面更新/inkling_and_benchmark_gate.md</code>。</p>
+
+    <div class="cols">
+      <div>
+        <h3>Inkling 系列：Small 放得下，但不列入</h3>
+        <p>Thinking Machines 公開權重的有五個：Inkling（975B／41B active，官方 NVFP4 就有 551 GiB，放不下）、Inkling-Small（276B／12B，7 月，已被下一代取代）、Inkling 2 Small（594B／17B，11/12）、Inkling 2 Mini（26.4B／3.4B，11/20）和一個研究用的 varloop 版，都是 Apache-2.0，沒有更大的 Inkling 2 <span class="conf" data-c="c">已確認</span>。Inkling 2 Mini 是給 32GB 機器的，評估見 <a href="#m1p">M1 Pro 32GB 分頁</a>。</p>
+        <p>Inkling 2 Small 的官方 NVFP4（366.5 GiB）加原生 1M 的 KV（只有 8 層 global attention，含 drafter 每 token 36 KiB，1M 約 36 GiB）再加 32 GiB prompt cache，約 441 GiB，放得進 480 GiB，但要 oMLX 0.8.3 以上：0.8.2 以前 sliding window 層的 KV 不截斷，1M 會多約 160 GiB <span class="conf" data-c="e">推估</span>。11/23–11/24 M5 Ultra 512GB 第一次有實測（oQ4e、MTP 開，oMLX 0.8.2／0.8.3）：prefill 32K 1,310、128K 824（首 token 159 秒）、200K 545（365 秒），decode 41–54 <span class="conf" data-c="r">社群回報</span>。prefill 只有 DeepSeek 的 1/3 到 1/7，每個長度都比 GLM 慢；照這個趨勢，冷的 1M prompt 要約 2 小時 <span class="conf" data-c="e">推估</span>。分數也撐不住：自報 DeepSWE 72.1，但兩個第三方的 Terminal-Bench 都只有 12–13，約 DeepSeek 的三分之一。它的強項是長文件（LongBench v2 70.6，DeepSeek 69.0），只有之後放寬「一次只常駐一個模型」、要一個看長文件的第二模型時才有角色。從觀察名單拿掉。</p>
+      </div>
+      <div>
+        <h3>GLM 和 Qwen 還能做什麼</h3>
+        <p><strong>GLM-5.3-Flash</strong> 是最可惜的一個。三個來源的 DeepSWE 都落在 63–64，比 DeepSeek 低 7–14 分；但 Terminal-Bench 兩個榜都跟 DeepSeek 差不多（tbench.ai 用 Claude Code harness 37.0 對 38.5，Vals 37.4 對 31.8），工具鏈也最齊（oMLX、llama.cpp、mlx-vlm、ds4 都能跑），8-bit（343 GB）加 1M context 放得下。DeepSeek 和 MiniMax 的 runtime 都出問題時，它是第一個備援。512GB 的社群上傳：官方 FP8／社群 oQ8e prefill 1,950–2,090、decode 40–55 <span class="conf" data-c="r">社群回報</span>。</p>
+        <p><strong>Qwen3.8-Flash-Next</strong> 在這頁的角色本來就是「最快讀完大量文件」，不是寫程式。DeepSWE 58.7（Tencent 重跑 65.1），也沒有第三方的 agentic 數字。8-bit oQ8e-mtp（195 GB）128K prefill 4,855–4,914，仍是最快的 <span class="conf" data-c="r">社群回報</span>；原生 context 只有 262K，授權是 qwen-community-1.0。只要快速讀過大量文件、不改程式時再拿出來。</p>
+        <p>兩個的量化和速度明細在 11/26 以前的版本裡（GitHub Pages repo 的歷史）。</p>
+      </div>
+    </div>
+    <p class="note">其他看過、沒列進表的：Recursive Flint（40B，太小）、Ripple-65B Preview（65B dense，DeepSWE 44.3）、Kimi-K3.1-Pro（2.78T）和 LongCat-2.5（1.78T）放不下、Kimi K3（2.8T，放不下；Mercor DeepSWE 72.9）。11/21–11/26 新出的：China Telecom Xing4.1-Preview（285B／17B，自報 Terminal-Bench 4.0 28.7，比 DeepSeek 弱，Mac 上沒有 runtime）、inclusionAI Ling-3.2-air（124B／5.5B，沒有 coding 分數，重點在工作流程和文件）。Hy4 和 Hy4-flash 的細節：Hy4 官方 FP8 786 GB 放不下，512GB 上只能跑 oMLX 的 oQ4h（452 GB，約 4.6 bit，沒有 KL）；KV 每 token 約 93 KiB，256K 時 prompt cache 只剩約 25–30 GiB，1M 放不下 <span class="conf" data-c="e">推估</span>；M5 Ultra 512GB 4K prompt 的 prefill 654、decode 20 tok/s <span class="conf" data-c="r">社群回報</span>。ERNIE 5.5 Flash Preview（280B／14B，Apache-2.0）是唯一一個 coding 分數接近 DeepSeek 的新模型：自報 Terminal-Bench 4.0 46.5、DeepSWE 71.2，官方預設檔 165.9 GB（routed experts 是 MXFP4 的 W4A8 QAT）。但 oMLX、mlx-vlm 的支援 PR 11/24 沒合併就關了，PR 裡 M5 Ultra 512GB 不開 draft 的 4.1K prompt 是 prefill 約 1,200、decode 約 16 tok/s <span class="conf" data-c="r">社群回報</span>；等有 Mac runtime 和第三方分數再看。</p>
   </section>
 
   <section id="memory">
     <h2>記憶體配置</h2>
-    <p class="measure">四個模型都用建議配置、開到建議的 context 長度，畫在同一把尺上。藍色是常駐 RAM 的權重，橘色是 KV cache，綠色是給 prompt cache 的熱層，黃色是 prefill 時的暫存（推估）。灰色那段是要留給 macOS 的記憶體。</p>
+    <p class="measure">兩個主力候選都用建議配置、開到建議的 context 長度，畫在同一把尺上。藍色是常駐 RAM 的權重，橘色是 KV cache，綠色是給 prompt cache 的熱層，黃色是 prefill 時的暫存（推估）。灰色那段是要留給 macOS 的記憶體。</p>
     <div id="multiples" class="multiples"></div>
 
     <h3 id="planner-title">自己試算</h3>
@@ -246,12 +271,12 @@
         </tbody>
       </table>
     </div>
-    <p class="note">現在的 M1 Mac mini 16GB 跑哪個版本的 DeepSeek V4.1 都不行。小記憶體 Mac 的 decode 卡在 SSD 的隨機讀取和 CPU 算 experts，不是 SSD 的 GB/s 規格。自組 PC 上的 v3.1 見<a href="#pc-models">自組 PC 分頁的四個模型</a>。</p>
+    <p class="note">現在的 M1 Mac mini 16GB 跑哪個版本的 DeepSeek V4.1 都不行。小記憶體 Mac 的 decode 卡在 SSD 的隨機讀取和 CPU 算 experts，不是 SSD 的 GB/s 規格。</p>
   </section>
 
   <section id="speed">
     <h2>速度</h2>
-    <p class="measure">兩張圖都是各模型的建議配置。DeepSeek 的 prefill 和 decode 改用 11/13 起 512GB 的社群上傳（看得到 CED、A8，仍未驗證，見下面的說明）。GLM 8-bit 的 prefill 1,950–2,090、decode 40–55，Qwen oQ8e、A8 關的 128K 是 4,855–4,914（這頁取 4,500–4,900），也都是 512GB 的社群上傳。其餘實測來自 MacStories 在 M5 Ultra 256GB 上用 oMLX 0.7.0.dev2 的測試，推估的換算方式見<a href="#assumptions">前提</a>。</p>
+    <p class="measure">兩張圖都是兩個主力候選的建議配置。DeepSeek 的 prefill 和 decode 用 11/13 起 512GB 的社群上傳（看得到 CED、A8，仍未驗證，見下面的說明）；MiniMax 是推估，512GB 上到 11/26 還沒有任何上傳。移出主力的 GLM 8-bit（prefill 1,950–2,090、decode 40–55）、Qwen oQ8e（A8 關的 128K 4,855–4,914）和 Inkling 2 Small 也都是 512GB 的社群上傳，留在下面的其他實測。其餘實測來自 MacStories 在 M5 Ultra 256GB 上用 oMLX 0.7.0.dev2 的測試，推估的換算方式見<a href="#assumptions">前提</a>。</p>
 
     <figure class="chart" id="chart-decode">
       <figcaption><span class="fig-title">Decode 速度（開啟內建 MTP／DSpark）</span><span class="fig-sub">tok/s，越長越好，線段是範圍</span></figcaption>
@@ -270,7 +295,7 @@
     <div class="callout">
       <p><strong>Prompt cache 比 prefill 速度更重要。</strong> 同一個 256K prompt，Qwen3.8-Flash-Next 在 M5 Ultra 上冷啟動要 104 秒，cache 命中後只要 5.8 秒。Coding agent 每一輪都會重送幾乎一樣的 prefix，所以 server 能不能穩定命中 cache、cache 能不能放到 SSD，影響比 prefill 快兩倍還大。</p>
       <p>oMLX 0.7.2 剛修好一個 Claude Code 專屬的問題：工具結果後面附的 hook、rule、reminder，以前會被搬進最前面的 system block，所以每一輪都重算整段對話（#4712）。另外 DeepSeek 開 SSD cache 時以 8,192 token 為一個 block，最後 8K 以內有變動就要從那個 block 的開頭重算。一般往後追加的回合不受影響，分支或改到最後 8K 內的內容才會重算，在 M5 Ultra 上最多約 4–5 秒。DeepSeek 線上是 128 token 一個 block（見 <a href="#deepinfer">DeepInfer</a>）。</p>
-      <p><strong>DeepSeek 的 prefill 以打開 CED 為前提，11/19 改成 3,000–3,900 tok/s（社群回報）。</strong>512GB 的社群上傳（11/13–11/14，跟這頁的配置相同：Engram 放 SSD、CED 開、A8 關，oMLX 0.7.4.dev1／0.8.0rc1，temperature 1，6 個 session）32K–195K 是 3,525–3,995；另一位上傳者（含唯一一筆 0.8.0 正式版）只有 3,009–3,180，原因不明，所以取 3,000–3,900。Engram 放 RAM 的多數上傳也一樣，跟官方 oQ2e 的 3,735–3,958（M5 Ultra 256GB，0.8.0，#5376）一致。開 MTP 的 decode 取 60–90，不開 speculative 取 46–52。沒開 CED 只有 1,243–2,406。<strong>A8 prefill（INT8 activation）不要開：</strong>0.7.3 的 A8 不涵蓋 oQ4e 的 MXFP4 experts（要 0.7.4.dev1 的 #5058），維護者自己說 A8 是 lossy，#5108 也回報 A8 和 CED 一起開時出現 thinking 迴圈、M5 Ultra 當機。0.8.0 正式版 A8 預設關閉，標「May reduce quality」。A8 開在 32K 以上只多 10–13%，不採用。</p>
+      <p><strong>DeepSeek 的 prefill 以打開 CED 為前提，11/26 改成 3,000–4,050 tok/s（社群回報）。</strong>11/21–11/25 又有 7 個正式版（0.8.0–0.8.3）、CED 開、A8 關的 session，32K–195K 仍分快的 3,680–4,060、慢的 3,150–3,335 兩群，0.8.0 和 0.8.2 都有慢的，Engram 放 SSD 或 RAM 也都有，所以不是版本或配置的問題；上限從 3,900 提到 4,050，下限不變，仍沒有 256K 以上的上傳。以下是 11/19 時的說明：512GB 的社群上傳（11/13–11/14，跟這頁的配置相同：Engram 放 SSD、CED 開、A8 關，oMLX 0.7.4.dev1／0.8.0rc1，temperature 1，6 個 session）32K–195K 是 3,525–3,995；另一位上傳者（含唯一一筆 0.8.0 正式版）只有 3,009–3,180，原因不明，所以取 3,000–3,900。Engram 放 RAM 的多數上傳也一樣，跟官方 oQ2e 的 3,735–3,958（M5 Ultra 256GB，0.8.0，#5376）一致。開 MTP 的 decode 取 60–90，不開 speculative 取 46–52。沒開 CED 只有 1,243–2,406。<strong>A8 prefill（INT8 activation）不要開：</strong>0.7.3 的 A8 不涵蓋 oQ4e 的 MXFP4 experts（要 0.7.4.dev1 的 #5058），維護者自己說 A8 是 lossy，#5108 也回報 A8 和 CED 一起開時出現 thinking 迴圈、M5 Ultra 當機。0.8.0 正式版 A8 預設關閉，標「May reduce quality」。A8 開在 32K 以上只多 10–13%，不採用。</p>
     </div>
 
     <h3>其他實測</h3>
@@ -278,6 +303,9 @@
       <table class="measured">
         <thead><tr><th scope="col">機器</th><th scope="col">模型與量化</th><th scope="col">Engine</th><th scope="col">Prefill tok/s</th><th scope="col">Decode tok/s</th><th scope="col">來源</th></tr></thead>
         <tbody>
+          <tr><td>M5 Ultra 512GB</td><td>DeepSeek V4.1 Flash oQ4e-ngram-mtp／oQ4e-mtp，CED 開、A8 關、MTP 開，Engram 在 SSD 或 RAM（7 個 session）</td><td>oMLX 0.8.0–0.8.3 正式版</td><td class="num">32K–195K：快的一群 3,680–4,060、慢的一群 3,150–3,335</td><td class="num">開 MTP、32K–195K：57–94；峰值 294–297 GB（SSD）、409–411 GB（RAM）</td><td>omlx.ai 社群上傳，未驗證（11/21–11/25）</td></tr>
+          <tr><td>M5 Ultra 512GB</td><td>DeepSeek V4.1 Flash 官方 FP8，不開 draft，context 131072</td><td>TensorFold main（11/24），Metal 4</td><td class="num">32K：1,505–1,512</td><td class="num">4K 50.4、32K 48.3</td><td>TensorFold #3547，社群回報（11/24）</td></tr>
+          <tr><td>M5 Ultra 512GB</td><td>Inkling 2 Small oQ4e，MTP 開（已移出主力）</td><td>oMLX 0.8.2／0.8.3</td><td class="num">4K–16K 1,167–1,342、32K 1,207–1,310、64K 1,074–1,176、128K 771–824、195K 532–548</td><td class="num">30.6–53.9（多數 41–54）；峰值 320–331 GB</td><td>omlx.ai 社群上傳，未驗證（11/21–11/24）</td></tr>
           <tr><td>M5 Ultra 512GB</td><td>DeepSeek V4.1 Flash oQ4e-ngram-mtp，Engram 在 SSD，CED 開、A8 關，temperature 1（這頁的推薦配置）</td><td>oMLX 0.7.4.dev1／0.8.0rc1</td><td class="num">32K–195K 3,525–3,995；4K 957–2,402</td><td class="num">開 MTP、16K–195K：53.7–94.2；峰值 290–294 GB</td><td>omlx.ai 社群上傳，未驗證（11/13–11/14）</td></tr>
           <tr><td>M5 Ultra 512GB</td><td>DeepSeek V4.1 Flash oQ4e-mtp，Engram 在 RAM，CED 開、A8 關，MTP 關</td><td>oMLX 0.8.0rc1</td><td class="num">1K–195K 1,432–3,973（16K–195K 3,811–3,973）</td><td class="num">不開 MTP：48.8–51.4；峰值 408 GB</td><td>omlx.ai 社群上傳，未驗證（11/18）</td></tr>
           <tr><td>M5 Ultra 512GB</td><td>DeepSeek V4.1 Flash oQ4e-ngram-mtp，A8 開</td><td>oMLX 0.8.0rc1</td><td class="num">16K–195K 3,894–4,480</td><td class="num">—</td><td>omlx.ai 社群上傳，未驗證（11/12–11/15）</td></tr>
@@ -312,26 +340,26 @@
 
   <section id="servers">
     <h2>Server</h2>
-    <p class="measure">先看能不能跑這四個模型，再看 prompt cache 能不能放 SSD、有沒有 Anthropic Messages API（Claude Code 要用），最後才是 speculative decoding。符號：✓ 支援，△ 部分支援，✕ 不支援，☁ 只有雲端版。</p>
+    <p class="measure">先看能不能跑兩個主力候選，再看 prompt cache 能不能放 SSD、有沒有 Anthropic Messages API（Claude Code 要用），最後才是 speculative decoding。符號：✓ 支援，△ 部分支援，✕ 不支援，☁ 只有雲端版。</p>
     <div class="table-wrap">
       <table class="servers">
         <thead>
-          <tr><th scope="col">Server</th><th scope="col">DeepSeek</th><th scope="col">GLM</th><th scope="col">Qwen</th><th scope="col">MiniMax M3.1</th><th scope="col">SSD prompt cache</th><th scope="col">Anthropic API</th><th scope="col">Speculative</th><th scope="col">判斷</th></tr>
+          <tr><th scope="col">Server</th><th scope="col">DeepSeek</th><th scope="col">MiniMax M3.1</th><th scope="col">SSD prompt cache</th><th scope="col">Anthropic API</th><th scope="col">Speculative</th><th scope="col">判斷</th></tr>
         </thead>
         <tbody>
-          <tr class="pick"><th scope="row">oMLX<small>0.8.1，Apache-2.0</small></th><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓ 0.7.3 起；0.8.0 含 M5 prefill 加速（#5084、#5157）</td><td class="y">✓ RAM＋SSD 分層，重開機還在</td><td class="y">✓</td><td>MTP、DSpark、DFlash</td><td><strong>主力。</strong>唯一四個都能跑、原生稀疏 kernel、明確用 Neural Accelerator。最新正式版是 0.8.1（11/21），0.7.4 沒有正式版。0.8.0 起 CED 預設開、A8 預設關（標 May reduce quality）；新增 Prefill Accelerator（NVIDIA PC 或另一台 Mac 幫 prefill）和 oQh 量化。0.8.1 跟這頁有關的：同一份已 cache 的長文件換問題時，Gated DeltaNet 這類 hybrid 模型會從分歧點接著算（#5251，M5 Pro 上 Qwen3.8-27B 245K 首 token 16.4 → 2.9 秒；Flash-Next 是同類架構，沒人量過）；GLM 兩、四個請求同時 decode 的總速度快 29–36%（#5414）；DeepSeek 寫壞或被截斷的工具呼叫回 <code>invalid_tool_call</code> 或保留截斷狀態，不再把 DSML 文字漏進回答（#5416）。缺 kernel 時會靜默退回慢路徑，要看 log；從原始碼裝的話，每次更新後要重跑 <code>make install</code></td></tr>
-          <tr><th scope="row">DwarfStar ds4<small>antirez，MIT</small></th><td class="y">✓</td><td class="y">✓</td><td class="y">✓</td><td class="n">✕</td><td class="y">✓ <code>--kv-disk-dir</code></td><td class="y">✓ 有 Claude Code 文件</td><td>DSpark、MTP</td><td><strong>DeepSeek 的備案。</strong>DSML 工具呼叫逐 byte 重播，prefix cache 最穩。預設的 MTP 接受方式是 lossy，要加 <code>--mtp-exact-sampling</code>。Prefill 也會跳過後 20 層，但用精確重建（最後 2,541 個 token），跟 oMLX 的 CED 輸出會有些微差異</td></tr>
-          <tr><th scope="row">llama.cpp<small>1.0.0，MIT</small></th><td class="p">△ prompt cache 有 bug（#30944）；Unsloth 高精度檔讀錯</td><td class="y">✓</td><td class="y">✓</td><td class="p">△ #32301（11/15）合併，但 Metal 不支援 NVFP4 matmul，官方權重的 experts 會退回 CPU</td><td class="p">△ 只能手動 slot 存讀</td><td class="p">△ b11756 起能用 <code>id_slot</code> 固定 slot</td><td>MTP、EAGLE-3、DFlash、DSpark、n-gram</td><td><strong>對照基準。</strong>要 b10733 以上、log 有 <code>has tensor = true</code>；<code>--cache-ram</code> 預設 8 GiB 要調大。稀疏注意力多半是在 dense flash attention 裡加遮罩。DeepSeek 10/25 由 #31086 合併，但重用 prompt cache 會出現單一 token 錯字，修好前要關掉 cache，等於每輪整段重算。修正 PR #31292 在 11/3 合併，但 #30944 當天就被維護者重新打開，有人在 CUDA 上還能重現（從 <code>--cache-ram</code> 還原 checkpoint 時觸發，<code>--cache-ram 0</code> 可以避開），11/14 有人在 CUDA 的 b12375 上驗證修好，issue 仍開著，Metal 上沒人驗證。Unsloth 的 UD-Q3_K_XL 以上用非官方的 type 43 存 Engram，b12000 起會載入但輸出亂碼，到 11/19 還沒重傳（11/13 Unsloth 的 README 自己寫明 b12233 起主線會把 MXFP8 表當成 F8_E4M3、靜默算錯；可以用 <code>--ple</code> 換成 Q6_K 表）。11/5 的 #31615 第一次有 M5 Ultra 的數字：DeepSeek MXFP4 pp2048 632、tg128 49.0（沒有 spec）</td></tr>
-          <tr><th scope="row">mlx-vlm server<small>0.8.0，MIT</small></th><td class="p">△ 工具呼叫 11/20 進 main，還沒 release</td><td class="y">✓</td><td class="y">✓</td><td class="y">✓（#2580）</td><td class="y">✓</td><td class="y">✓</td><td>MTP、DSpark、DFlash2、EAGLE-3</td><td><strong>觀察。</strong>0.7.11（10/28）正式支援 MiniMax M3.1，也修了長工具對話的 cache；0.7.12（11/4）加了 Mistral Large 4，repo 轉到 Neywa-Labs。0.8.0（11/16）加了 DeepSeek 原生 DSpark（#2678），但作者說全尺寸 DeepSeek 沒驗證。DeepSeek 的 DSML 工具呼叫 #2544 在 11/20 合併到 main（改用 DeepSeek 官方的 prompt encoder，加上 DSML parser），還沒進 release；出 release、有人驗證過全尺寸 DeepSeek 之後是很強的備案</td></tr>
-          <tr><th scope="row">Splash<small>1.7.0，Apache-2.0</small></th><td class="p">△ PR #619 還沒合併，只吃 GGUF；Engram 表只吃 IQ4_NL，官方 FP8 權重讀不了</td><td class="n">✕（#740）</td><td class="y">✓ 只吃 GGUF，MLX 版還不行（#597）</td><td class="n">✕</td><td class="y">✓ 預設上限 32 GiB；要加 <code>--persistent-cache</code> 重開才還在</td><td class="y">✓ 有 <code>splash claude</code></td><td>DFlash2（tree 驗證＋prompt lookup）；#619 用 DSpark</td><td><strong>觀察，只在選 Qwen 時有用。</strong>Inco AI（DFlash 2 的作者）做的專用引擎，每個模型配自己的 drafter 和手寫 Metal kernel，M5 上 prefill 會用 Neural Accelerator。M3 Ultra 512GB 的社群實測（PR #619 留言，1.65K prompt、輸出 512）：Flash-Next UD-Q4_K_XL decode 183.5、prefill 1,424，但答案不能照抄 prompt 時 decode 只有 84.5；DeepSeek 2-bit 級 decode 36.6–41.8、prefill 約 405，同檔 llama.cpp 1.0.0 是 35.3–40.9、282 <span class="conf" data-c="r">社群回報</span>。8-bit GGUF 照格式表應該能載入，但沒人量過；M5 Ultra 和長 context 都還沒有數字。預設閒置 10 分鐘就放掉模型，常駐要加 <code>--idle-release off</code>；1.7.0 預設的 <code>--verify-rows auto</code> 下 greedy 輸出每次可能不同，要可重現就加 <code>--verify-rows all</code>。oMLX 0.8.0 也能把它掛成外部引擎，但長 cached prompt 的首 token 慢一倍（oMLX #5398）。只支援 M3 以上，commit 幾乎都是同一個人寫的</td></tr>
-          <tr><th scope="row">mlx_lm.server<small>0.32.2</small></th><td class="n">✕</td><td class="n">✕</td><td class="p">△ main（#1788，11/16）</td><td class="p">△ main 分支（#2003）</td><td class="n">✕</td><td class="n">✕</td><td>只有獨立 draft model</td><td>不適用。只能拿來先確認 MiniMax 權重能跑</td></tr>
-          <tr><th scope="row">Locals<small>0.2.2，MIT</small></th><td class="n">✕</td><td class="n">✕</td><td class="n">✕</td><td class="n">✕</td><td class="p">△ 只存 system prompt，預設上限 4 GB</td><td class="y">✓</td><td>文法強制 token、prompt lookup</td><td>不適用。模型由 mlx-lm 0.32 載入，所以這四個都跑不了；加速 kernel 只涵蓋 dense 4-bit（group 64），MoE、mxfp4 或單一請求時跟 mlx-lm 差不多。它的強項是同時跑 8–16 個小模型 agent。10/12 才開源，GPU 上的工具呼叫文法可以觀察</td></tr>
-          <tr><th scope="row">LM Studio<small>0.4.28</small></th><td class="n">✕</td><td class="p">△</td><td class="y">✓</td><td class="n">✕</td><td class="p">△ 卸載就清掉</td><td class="y">✓</td><td>draft、MTP（llama.cpp engine）</td><td>不適合。內建的 llama.cpp 可能沒開 Neural Accelerator（#2040）</td></tr>
-          <tr><th scope="row">Ollama<small>0.40.16</small></th><td class="c">☁</td><td class="c">☁</td><td class="y">✓</td><td class="c">☁</td><td class="n">✕</td><td class="p">△ 沒有 count_tokens</td><td>Qwen MTP</td><td>只能跑 Qwen</td></tr>
+          <tr class="pick"><th scope="row">oMLX<small>0.8.3，Apache-2.0</small></th><td class="y">✓</td><td class="y">✓ 0.7.3 起；0.8.0 含 M5 prefill 加速（#5084、#5157）</td><td class="y">✓ RAM＋SSD 分層，重開機還在</td><td class="y">✓</td><td>MTP、DSpark、DFlash</td><td><strong>主力。</strong>兩個主力候選都能跑（GLM、Qwen、Inkling 2 也都支援）、原生稀疏 kernel、明確用 Neural Accelerator。最新正式版是 0.8.3（11/22），0.7.4 沒有正式版。0.8.3 跟這頁有關的：DeepSeek 的 Lightning MTP 預設深度改成 5（#5527，M5 Ultra 256GB 上實際 code prompt 77.3 → 80.5 tok/s，prose 不變；以前存過深度 3 的會變成 Model default，#5541）；Claude Code 的 WebSearch 工具可以在本機模型上用，由 oMLX 設定的搜尋服務回答（#5342）。仍釘 MLX 0.32.4，main 11/25 已跟上 0.32.5（#5652）。0.8.0 起 CED 預設開、A8 預設關（標 May reduce quality）；新增 Prefill Accelerator（NVIDIA PC 或另一台 Mac 幫 prefill）和 oQh 量化。0.8.1 跟這頁有關的：同一份已 cache 的長文件換問題時，Gated DeltaNet 這類 hybrid 模型會從分歧點接著算（#5251，M5 Pro 上 Qwen3.8-27B 245K 首 token 16.4 → 2.9 秒；Flash-Next 是同類架構，沒人量過）；GLM 兩、四個請求同時 decode 的總速度快 29–36%（#5414）；DeepSeek 寫壞或被截斷的工具呼叫回 <code>invalid_tool_call</code> 或保留截斷狀態，不再把 DSML 文字漏進回答（#5416）。缺 kernel 時會靜默退回慢路徑，要看 log；從原始碼裝的話，每次更新後要重跑 <code>make install</code></td></tr>
+          <tr><th scope="row">DwarfStar ds4<small>antirez，MIT</small></th><td class="y">✓</td><td class="n">✕</td><td class="y">✓ <code>--kv-disk-dir</code></td><td class="y">✓ 有 Claude Code 文件</td><td>DSpark、MTP</td><td><strong>DeepSeek 的備案。</strong>DSML 工具呼叫逐 byte 重播，prefix cache 最穩。預設的 MTP 接受方式是 lossy，要加 <code>--mtp-exact-sampling</code>。Prefill 也會跳過後 20 層，但用精確重建（最後 2,541 個 token），跟 oMLX 的 CED 輸出會有些微差異</td></tr>
+          <tr><th scope="row">llama.cpp<small>1.0.0，MIT</small></th><td class="p">△ prompt cache 有 bug（#30944）；Unsloth 高精度檔讀錯</td><td class="p">△ #32301（11/15）合併；Metal 的 NVFP4 kernel 11/23 才進來（#32825，b12672 起），還沒人在 Metal 上跑過官方權重</td><td class="p">△ 只能手動 slot 存讀</td><td class="p">△ b11756 起能用 <code>id_slot</code> 固定 slot</td><td>MTP、EAGLE-3、DFlash、DSpark、n-gram</td><td><strong>對照基準。</strong>要 b10733 以上、log 有 <code>has tensor = true</code>；<code>--cache-ram</code> 預設 8 GiB 要調大。稀疏注意力多半是在 dense flash attention 裡加遮罩。DeepSeek 10/25 由 #31086 合併，但重用 prompt cache 會出現單一 token 錯字，修好前要關掉 cache，等於每輪整段重算。修正 PR #31292 在 11/3 合併，但 #30944 當天就被維護者重新打開，有人在 CUDA 上還能重現（從 <code>--cache-ram</code> 還原 checkpoint 時觸發，<code>--cache-ram 0</code> 可以避開），11/14 有人在 CUDA 的 b12375 上驗證修好，issue 仍開著，Metal 上沒人驗證。Unsloth 的 UD-Q3_K_XL 以上用非官方的 type 43 存 Engram，b12000 起會載入但輸出亂碼，到 11/19 還沒重傳（11/13 Unsloth 的 README 自己寫明 b12233 起主線會把 MXFP8 表當成 F8_E4M3、靜默算錯；可以用 <code>--ple</code> 換成 Q6_K 表）。11/5 的 #31615 第一次有 M5 Ultra 的數字：DeepSeek MXFP4 pp2048 632、tg128 49.0（沒有 spec）</td></tr>
+          <tr><th scope="row">mlx-vlm server<small>0.8.1，MIT</small></th><td class="p">△ 0.8.1 起有 DSML 工具呼叫，全尺寸沒人驗證</td><td class="y">✓（#2580）</td><td class="y">✓</td><td class="y">✓</td><td>MTP、DSpark、DFlash2、EAGLE-3</td><td><strong>觀察。</strong>0.7.11（10/28）正式支援 MiniMax M3.1，也修了長工具對話的 cache；0.7.12（11/4）加了 Mistral Large 4，repo 轉到 Neywa-Labs。0.8.0（11/16）加了 DeepSeek 原生 DSpark（#2678），但作者說全尺寸 DeepSeek 沒驗證。DeepSeek 的 DSML 工具呼叫 #2544（改用 DeepSeek 官方的 prompt encoder，加上 DSML parser）進了 0.8.1（11/23）；有人驗證過全尺寸 DeepSeek 的工具呼叫之後是很強的備案</td></tr>
+          <tr><th scope="row">Splash<small>1.7.3，Apache-2.0</small></th><td class="p">△ PR #619 還沒合併，只吃 GGUF；Engram 表只吃 IQ4_NL，官方 FP8 權重讀不了</td><td class="n">✕</td><td class="y">✓ 預設上限 32 GiB；要加 <code>--persistent-cache</code> 重開才還在</td><td class="y">✓ 有 <code>splash claude</code></td><td>DFlash2（tree 驗證＋prompt lookup）；#619 用 DSpark</td><td><strong>觀察。</strong>正式支援的只有已經移出主力的 Qwen3.8-Flash-Next（1.7.1 起也吃 MLX checkpoint，#597 關閉）和 Inkling 2 Mini；DeepSeek 的 #619、GLM 的 #740 都沒動。Inco AI（DFlash 2 的作者）做的專用引擎，每個模型配自己的 drafter 和手寫 Metal kernel，M5 上 prefill 會用 Neural Accelerator。M3 Ultra 512GB 的社群實測（PR #619 留言，1.65K prompt、輸出 512）：Flash-Next UD-Q4_K_XL decode 183.5、prefill 1,424，但答案不能照抄 prompt 時 decode 只有 84.5；DeepSeek 2-bit 級 decode 36.6–41.8、prefill 約 405，同檔 llama.cpp 1.0.0 是 35.3–40.9、282 <span class="conf" data-c="r">社群回報</span>。8-bit GGUF 照格式表應該能載入，但沒人量過；M5 Ultra 和長 context 都還沒有數字。預設閒置 10 分鐘就放掉模型，常駐要加 <code>--idle-release off</code>；1.7.0 預設的 <code>--verify-rows auto</code> 下 greedy 輸出每次可能不同，要可重現就加 <code>--verify-rows all</code>。oMLX 0.8.0 也能把它掛成外部引擎，但長 cached prompt 的首 token 每次啟動隨機落在約 0.44 秒或 0.88 秒，跟 flag 無關，原因不明（oMLX #5398）。1.7.2 起 agent session 重用共用的 prompt 前段，<code>--persistent-cache</code> 讓 system prompt 和工具重開後也能重用。只支援 M3 以上，commit 幾乎都是同一個人寫的</td></tr>
+          <tr><th scope="row">mlx_lm.server<small>0.32.2</small></th><td class="n">✕</td><td class="p">△ main 分支（#2003）</td><td class="n">✕</td><td class="n">✕</td><td>只有獨立 draft model</td><td>不適用。只能拿來先確認 MiniMax 權重能跑</td></tr>
+          <tr><th scope="row">Locals<small>0.2.2，MIT</small></th><td class="n">✕</td><td class="n">✕</td><td class="p">△ 只存 system prompt，預設上限 4 GB</td><td class="y">✓</td><td>文法強制 token、prompt lookup</td><td>不適用。模型由 mlx-lm 0.32 載入，所以這頁的模型都跑不了；加速 kernel 只涵蓋 dense 4-bit（group 64），MoE、mxfp4 或單一請求時跟 mlx-lm 差不多。它的強項是同時跑 8–16 個小模型 agent。10/12 才開源，GPU 上的工具呼叫文法可以觀察</td></tr>
+          <tr><th scope="row">LM Studio<small>0.4.29</small></th><td class="n">✕</td><td class="n">✕</td><td class="p">△ 卸載就清掉</td><td class="y">✓</td><td>draft、MTP（llama.cpp engine）</td><td>不適合。內建的 llama.cpp 可能沒開 Neural Accelerator（#2040）。0.4.29（11/25）起 Mac 版能用 Splash 當 engine</td></tr>
+          <tr><th scope="row">Ollama<small>0.40.18</small></th><td class="c">☁</td><td class="c">☁</td><td class="n">✕</td><td class="p">△ 沒有 count_tokens</td><td>Qwen MTP</td><td>不適用。主力候選都只有雲端版</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="note">其他看過但不適合的：mlx-serve（不支援 MiniMax；26.11.1 起有 SSD cache，11/6 的 v26.11.2 自稱 DeepSeek GGUF 走 MLX engine 在 M5 Ultra 上 prefill 約 3,300 tok/s，沒附量化和條件；main 11/18 加了 opt-in 的 DSpark 逐 bit 驗證（<code>MLX_SERVE_DSV41_EXACT</code>），預設不保證；11/20 的 v26.11.3 主要是新模型、外部量化 plugin 和記憶體處理，release notes 沒提這個開關；兩台 tensor parallel 見<a href="#duo">兩台分頁</a>）、Rapid-MLX（1.0.4；DeepSeek 只有給 256GB 的實驗性 REAP 2-bit，greedy、輸入上限 8K、沒有工具呼叫）、vllm-mlx 和 vllm-metal（不支援這四個模型）、mistral.rs（只支援 Qwen，而且 MTP 會重算已 cache 的 prefix）、exo（只有多台 Mac 才有意義，11/1 起 main 支援四個模型）、SwiftLM。Kapitsa（0.2.37；tree speculative、SSD prefix cache、<code>kapitsa claude</code>）和 Ijah（只支援 M5 的 Metal engine）都還不支援 DeepSeek、GLM、MiniMax。MTPLX、TensorFold、Strata 是只支援少數模型的專用引擎，放在下面幾節；Splash 也是，但它有 Anthropic API 和 SSD cache，所以列進上表。DeepSeek 10/20 開源的 DeepInfer 只能跑在 NVIDIA SM100 和 Ascend 950 上，11/18 的 nv-dev 分支加了 SM120（8× RTX PRO 6000）；社群的 DeepInfer-Mac 是 MLX 移植版，在 24GB 的 M4 Air 上從 SSD 串流 experts，decode 只有 1.25 tok/s，不適合拿來用（見 <a href="#deepinfer">DeepInfer</a>）。</p>
+    <p class="note">其他看過但不適合的：mlx-serve（不支援 MiniMax；26.11.1 起有 SSD cache，11/6 的 v26.11.2 自稱 DeepSeek GGUF 走 MLX engine 在 M5 Ultra 上 prefill 約 3,300 tok/s，沒附量化和條件；main 11/18 加了 opt-in 的 DSpark 逐 bit 驗證（<code>MLX_SERVE_DSV41_EXACT</code>），預設不保證；11/20 的 v26.11.3 主要是新模型、外部量化 plugin 和記憶體處理，release notes 沒提這個開關；兩台 tensor parallel 見<a href="#duo">兩台分頁</a>）、Rapid-MLX（1.0.4；DeepSeek 只有給 256GB 的實驗性 REAP 2-bit，greedy、輸入上限 8K、沒有工具呼叫）、vllm-mlx 和 vllm-metal（不支援這頁的模型）、mistral.rs（只支援 Qwen，而且 MTP 會重算已 cache 的 prefix）、exo（只有多台 Mac 才有意義，11/1 起 main 支援 DeepSeek、GLM、Qwen、MiniMax）、SwiftLM。Kapitsa（0.2.37；tree speculative、SSD prefix cache、<code>kapitsa claude</code>）和 Ijah（只支援 M5 的 Metal engine）都還不支援 DeepSeek、GLM、MiniMax。MTPLX、TensorFold、Strata 是只支援少數模型的專用引擎，放在下面幾節；Splash 也是，但它有 Anthropic API 和 SSD cache，所以列進上表。DeepSeek 10/20 開源的 DeepInfer 只能跑在 NVIDIA SM100 和 Ascend 950 上，11/18 的 nv-dev 分支加了 SM120（8× RTX PRO 6000）；社群的 DeepInfer-Mac 是 MLX 移植版，在 24GB 的 M4 Air 上從 SSD 串流 experts，decode 只有 1.25 tok/s，不適合拿來用（見 <a href="#deepinfer">DeepInfer</a>）。</p>
   </section>
 
   <section id="spec">
@@ -341,7 +369,7 @@
     <div class="clarify">
       <div>
         <h3>TensorFold 是什麼</h3>
-        <p>是一個 inference engine，不是新的演算法。用 Zig 加自己寫的 Metal kernel，把內建 MTP、DFlash／DFlash2 和「recall」（從先前請求複製 draft）包在一起，而且會逐 byte 檢查輸出跟不開 draft 時完全一樣，所以是 lossless。它在 M5 上會用 GPU 的 tensor 單元驗證 draft tree。Qwen3.8-Flash-Next 6-bit 加 MTP 已經在單台 M5 Ultra 上驗證過；MiniMax 10/31 起支援（#1235），但用的是社群的有損 checkpoint（KL 0.244–0.295），不是官方權重。GLM-5.3-Flash 官方仍寫單機沒有驗證、要兩台 M5 Ultra，但 11/10 有人在單台 M5 Ultra 512GB 用 1.2.5 跑起它自己的 4-bit（182 GB），32K prompt decode 89.2、prefill 2,088 tok/s，比同機 oMLX 跑 oQ6e 的 58.1 快，代價是精度低兩級。官方數字漂亮，但唯一一份獨立測試修正 thinking 設定之後，加速大概打平。最新版是 1.3.2（11/20）：1.3.0 的 DeepSeek prompt attention kernel 約快 1.5 倍（#3351）；1.3.2 在 M5 Ultra 上讓 DeepSeek 1–2 個 stream 的 decode 快 6–17%，單 stream 不開 draft 46.4–49.5、greedy 82.2–84.3 tok/s，輸出逐 token 不變；1.3.1 加了 Hy4-flash。都沒有新的端到端 prefill 數字。#1720 在 11/13 合併，1.2.8 起以實驗功能提供（要設 <code>TF_EXPERIMENTAL=deepseek</code>）。1.2.10 在 M5 Ultra 512GB：16 個 prompt 的 DSpark greedy 89.3、sampled 72.7、不開 draft 51.5；冷 prompt 2K 631、8K 917、30K 1,064 tok/s，開不開 draft 輸出的 token hash 都相同（見<a href="#speed">速度</a>的表）。decode 跟 oMLX 的社群上傳差不多，prefill 比 oMLX 開 CED 慢很多，不影響推薦。11/11 X 上流傳的「Qwen3.8-27B 單張 RTX 5090 破 1,000 tok/s」是另一個 engine（Cinference）把 8 條平行 lane 的速度加總，作者自己說實際使用約 350；TensorFold 同一天的 fanout 模式也是多 lane 加總（8 條瞬間最高約 926），還沒進 repo。27B 不是這頁追蹤的模型，也不能跟主力模型同時常駐。</p>
+        <p>是一個 inference engine，不是新的演算法。用 Zig 加自己寫的 Metal kernel，把內建 MTP、DFlash／DFlash2 和「recall」（從先前請求複製 draft）包在一起，而且會逐 byte 檢查輸出跟不開 draft 時完全一樣，所以是 lossless。它在 M5 上會用 GPU 的 tensor 單元驗證 draft tree。Qwen3.8-Flash-Next 6-bit 加 MTP 已經在單台 M5 Ultra 上驗證過；MiniMax 10/31 起支援（#1235），但用的是社群的有損 checkpoint（KL 0.244–0.295），不是官方權重。GLM-5.3-Flash 官方仍寫單機沒有驗證、要兩台 M5 Ultra，但 11/10 有人在單台 M5 Ultra 512GB 用 1.2.5 跑起它自己的 4-bit（182 GB），32K prompt decode 89.2、prefill 2,088 tok/s，比同機 oMLX 跑 oQ6e 的 58.1 快，代價是精度低兩級。官方數字漂亮，但唯一一份獨立測試修正 thinking 設定之後，加速大概打平。最新版是 1.3.5（11/25）：1.3.0 的 DeepSeek prompt attention kernel 約快 1.5 倍（#3351）；1.3.2 在 M5 Ultra 上讓 DeepSeek 1–2 個 stream 的 decode 快 6–17%，單 stream 不開 draft 46.4–49.5、greedy 82.2–84.3 tok/s，輸出逐 token 不變；1.3.3–1.3.5 加了 DeepSeek 多 stream decode 合併 dispatch（#2954）、DSpark 在 GPU 上選 draft（#3405）、冷 prompt 預讀 Engram（#3459），以及自家的 TFQ3 量化格式。#3547 用 11/24 的 main 在 M5 Ultra 512GB 量官方 FP8、不開 draft：decode 4K 50.4、32K 48.3，32K prompt 1,505–1,512 tok/s，比 1.2.10 的 30K 1,064 快約四成，但仍不到 oMLX 開 CED 的一半 <span class="conf" data-c="r">社群回報</span>。同一份測試確認 1.3.2 起預設的 Metal 4 路徑沒有 decode 停頓。#1720 在 11/13 合併，1.2.8 起以實驗功能提供（要設 <code>TF_EXPERIMENTAL=deepseek</code>）。1.2.10 在 M5 Ultra 512GB：16 個 prompt 的 DSpark greedy 89.3、sampled 72.7、不開 draft 51.5；冷 prompt 2K 631、8K 917、30K 1,064 tok/s，開不開 draft 輸出的 token hash 都相同（見<a href="#speed">速度</a>的表）。decode 跟 oMLX 的社群上傳差不多，prefill 比 oMLX 開 CED 慢很多，不影響推薦。11/11 X 上流傳的「Qwen3.8-27B 單張 RTX 5090 破 1,000 tok/s」是另一個 engine（Cinference）把 8 條平行 lane 的速度加總，作者自己說實際使用約 350；TensorFold 同一天的 fanout 模式也是多 lane 加總（8 條瞬間最高約 926），還沒進 repo。27B 不是這頁追蹤的模型，也不能跟主力模型同時常駐。</p>
       </div>
       <div>
         <h3>dflash2 其實屬於這一節</h3>
@@ -351,7 +379,7 @@
 
     <div class="table-wrap">
       <table class="spec-table">
-        <thead><tr><th scope="col">方法</th><th scope="col">Lossless</th><th scope="col">Mac 上的實作</th><th scope="col">四個模型能用的 drafter</th><th scope="col">Mac 實測</th><th scope="col">建議</th></tr></thead>
+        <thead><tr><th scope="col">方法</th><th scope="col">Lossless</th><th scope="col">Mac 上的實作</th><th scope="col">這頁的模型能用的 drafter</th><th scope="col">Mac 實測</th><th scope="col">建議</th></tr></thead>
         <tbody>
           <tr class="pick"><th scope="row">內建 MTP</th><td>是（ds4 預設在 temperature &gt; 0 時是 lossy）</td><td>oMLX Lightning MTP、MTPLX、mlx-vlm、ds4、TensorFold、llama.cpp <code>draft-mtp</code>；mlx-lm 沒有</td><td>Qwen ✓、GLM ✓、DeepSeek 和 MiniMax M3.1 用 DSpark。要下載「-mtp」版本，一般轉換會丟掉 MTP 權重</td><td>M3 Ultra（oMLX）：Qwen 1.54 倍；GLM 長程式碼 1.8–1.9 倍、短 prompt 約 1.2 倍</td><td><strong>首選。</strong>depth 1–3，交給 engine 自動調</td></tr>
           <tr class="pick"><th scope="row">DSpark</th><td>是（exact 模式；oMLX 0.7.1 起 greedy 輸出逐 token 相同）</td><td>oMLX、ds4、mlx-vlm（0.8.0 原生支援）、mlx-dspark、TensorFold 社群 fork</td><td>DeepSeek 內建（-mtp 版本已含）；MiniMax M3.1 官方 repo 也附一個（5 層、block 7）</td><td>M3 Ultra：DeepSeek 38.7 → 64.1 tok/s（oMLX 0.7.2）；MiniMax M3.1 22.5 → 42.0（oMLX PR #4777，程式碼續寫，prose 加速較少）。ds4 在兩台 M5 Max 上反而變慢。DeepSeek 線上（GPU）一次 draft 5 個 token，平均每步接受 3.2–3.3 個</td><td><strong>DeepSeek 和 MiniMax 都用這個，搭 oMLX。</strong>不要開 MoE expert offload，開了 oMLX 會停用 DSpark</td></tr>
@@ -447,7 +475,7 @@
           <tr class="pick"><th scope="row">KV／prefix cache 放 SSD</th><td>oMLX（RAM＋SSD 分層）、ds4 <code>--kv-disk-dir</code>、mlx-vlm、llama.cpp 手動 slot</td><td>256K 冷啟動 104 秒，cache 命中 5.8 秒；llama.cpp 30K 文件 99 秒變 1.8 秒</td><td><strong>最有用。</strong>256K 以上的多輪對話全靠它</td></tr>
           <tr class="pick"><th scope="row">Engram／n-gram 查表放 SSD</th><td>oMLX（DeepSeek Engram、Qwen n-gram 表）、ds4、Strata</td><td>每 token 只讀幾列。oMLX 0.7.1 改成逐列精確讀取、寬 chunk 會預讀，M5 Max 上 8K prompt 的 TTFT 少 5.5%；M5 Max 128GB 重度 offload 時 Engram 只佔 decode 時間的 6%</td><td><strong>有用。</strong>DeepSeek 用官方精度只佔約 290 GiB RAM。跟 MoE expert offload 是兩個獨立開關，Engram 放 SSD 不影響 DSpark</td></tr>
           <tr><th scope="row">SSD 串流 MoE experts</th><td>oMLX expert offload（實驗性）、flash-moe、Strata、Splash（1.4.0 起；1.6.0 起常駐的 experts 會隨可用記憶體增減）；llama.cpp 只有 PoC</td><td>decode 慢 2–4 倍；Strata 超出 15 GB 就讓 decode 掉一半</td><td>用不到，除非要跑放不下的量化。oMLX 開了 expert offload 就不能用 DSpark（DeepSeek）</td></tr>
-          <tr><th scope="row">多台 Mac（Thunderbolt 5 RDMA）</th><td>oMLX 叢集（實驗性；DeepSeek 在 256GB 上只能 tensor parallel，GLM 可 tensor 或 pipeline，0.7.2 起有 MTP）、ds4（只有兩台 tensor parallel）、mlx-lm main（只有 MiniMax）、llama.cpp RPC（按層切）；exo 四個都不支援。Apple 的 Claris 在做 Harbor（private preview，MLX，Thunderbolt 5 自動組叢集），API 格式、prompt cache 和能不能載自訂 checkpoint 都還不知道</td><td>Apple 實測（每對兩條線、開實驗性的 FAST_SYNCH）：27B dense 兩台 tensor parallel decode 1.69–1.73 倍、四台 2.58–2.66 倍；42B active 的 MoE 兩台 tensor 比兩台 pipeline 快 1.59–1.66 倍。Pipeline 的 decode 不變，prefill 要長 prompt 才快（8K 1.0 倍、65K 1.71–1.78 倍）。四個候選模型在兩台 M5 Ultra 上只有社群數字，DeepSeek 和 GLM 沒有同 runtime 的單機對照（見兩台分頁）</td><td>用不到：四個候選模型都放得進 512GB。0.8.0 正式版起叢集有多格 prompt cache（#5062）和 DeepSeek 的叢集 fast kernel（#5086），0.8.1 起 DeepSeek 的 tensor parallel 可以依每台記憶體切（#5272）；MLX 的斷線修正只測過拔線、還沒進 release。以後要加一台，先看 oMLX 0.8.0 的 Prefill Accelerator（現在也能用 NVIDIA PC 當 helper，輔助機只幫 prefill、不用 RDMA）。M1 沒有 Thunderbolt 5。兩台 256GB 的評估見<a href="#duo">兩台 M5 Ultra 256GB 分頁</a></td></tr>
+          <tr><th scope="row">多台 Mac（Thunderbolt 5 RDMA）</th><td>oMLX 叢集（實驗性；DeepSeek 在 256GB 上只能 tensor parallel，GLM 可 tensor 或 pipeline，0.7.2 起有 MTP）、ds4（只有兩台 tensor parallel）、mlx-lm main（只有 MiniMax）、llama.cpp RPC（按層切）；exo 四個都不支援。Apple 的 Claris 在做 Harbor（private preview，MLX，Thunderbolt 5 自動組叢集），API 格式、prompt cache 和能不能載自訂 checkpoint 都還不知道</td><td>Apple 實測（每對兩條線、開實驗性的 FAST_SYNCH）：27B dense 兩台 tensor parallel decode 1.69–1.73 倍、四台 2.58–2.66 倍；42B active 的 MoE 兩台 tensor 比兩台 pipeline 快 1.59–1.66 倍。Pipeline 的 decode 不變，prefill 要長 prompt 才快（8K 1.0 倍、65K 1.71–1.78 倍）。這頁的模型在兩台 M5 Ultra 上只有社群數字，DeepSeek 和 GLM 沒有同 runtime 的單機對照（見兩台分頁）</td><td>用不到：兩個主力候選都放得進 512GB。0.8.0 正式版起叢集有多格 prompt cache（#5062）和 DeepSeek 的叢集 fast kernel（#5086），0.8.1 起 DeepSeek 的 tensor parallel 可以依每台記憶體切（#5272）；MLX 的斷線修正只測過拔線、還沒進 release。以後要加一台，先看 oMLX 0.8.0 的 Prefill Accelerator（現在也能用 NVIDIA PC 當 helper，輔助機只幫 prefill、不用 RDMA）。M1 沒有 Thunderbolt 5。兩台 256GB 的評估見<a href="#duo">兩台 M5 Ultra 256GB 分頁</a></td></tr>
           <tr><th scope="row">分離 prefill（exo＋DGX Spark）</th><td>oMLX 0.8.0 的 Prefill Accelerator（CUDA helper，Ampere 以上）</td><td>M3 Ultra 512GB＋DGX Spark，DeepSeek 64K 1,085 → 2,412</td><td>不用。M5 Ultra 的 prefill 已經快很多。M5 Ultra 512GB 開 helper 的社群上傳不穩定（128K 3,192、195K 4,605–4,786）</td></tr>
           <tr><th scope="row">Neural Engine＋GPU</th><td>oMLX prefill 分流、ANEMLL（8B 以下、不支援 MoE）</td><td>prefill 約多 5%</td><td>不用</td></tr>
           <tr><th scope="row">CPU＋GPU 拆分</th><td>llama.cpp <code>-ot</code>、<code>--n-cpu-moe</code></td><td>統一記憶體下沒有好處</td><td>不用</td></tr>
@@ -461,14 +489,14 @@
   <section id="checklist">
     <h2>到貨後的步驟</h2>
     <ol class="steps">
-      <li><strong>設定記憶體上限。</strong> 先看預設值：<code>sysctl iogpu.wired_limit_mb</code> 和 Metal 的 <code>recommendedMaxWorkingSetSize</code>。macOS 27.2 上 512GB 的預設 Metal 上限約 480 GB（11/13 一位 512GB 使用者的 oMLX log；改設 491520 跟不設沒差）。所以不要設 483328，改成確認預設值後明確設成同樣的值（例如 <code>491520</code>，480 GiB）寫進 LaunchDaemon。#5165（卸載模型把上限重設成 0）已在 oMLX 0.8.0 修好；明確設定的理由是 #4040：沒設時閒置約 2 秒後第一個 forward 卡約 900 ms。oQ4e-mtp 放 RAM 的峰值到 408 GB，上限要高於這個值。oMLX 0.8.0 的 Keep GPU Awake After Requests（預設 5 分鐘，可調長）處理閒置後收回 wired 記憶體，coding agent 兩次請求可能超過 5 分鐘，建議調長。macOS 27.3 beta 2（11/16）也沒提 wired limit。台灣訂單大約 2027 年 1 月才到，到時再查一次最新版本。</li>
-      <li><strong>確認 Neural Accelerator 有在用。</strong> MLX 0.32.4 以上；llama.cpp b10733 以上而且 log 出現 <code>has tensor = true</code>。不要拿 LM Studio 內建的 llama.cpp 當基準。</li>
-      <li><strong>規劃 2TB SSD。</strong> DeepSeek oQ4e-ngram-mtp 512 GB、GLM 8-bit 約 343 GB、Qwen oQ8e 195 GB、MiniMax 官方權重 252 GB，合計約 1,300 GB，再加 SSD prompt cache 100–200 GB。放不下時 DeepSeek 改用 Engram 4-bit 的 oQ4e-mtp（432 GB），或先不放 GLM。不要在本機留 BF16／FP8 原始檔；GLM 若要自己轉 8-bit，轉換時會同時佔 328＋343 GB，轉完就刪原檔；也可以直接下載社群現成的 oQ8e-mtp（342.2 GB，沒有 KLD），省掉轉檔。要拿 Unsloth 的 UD-Q8_K_XL 當精度對照的話，SSD 再多 508 GB，2TB 會放不下，用外接碟或做完就刪。冷備份放外接 Thunderbolt 5 SSD，但不要直接從外接碟讀。</li>
-      <li><strong>裝 oMLX 到貨時的最新正式版（至少 0.8.0），先跑主力配置。</strong> DeepSeek oQ4e-ngram-mtp、Engram SSD offload、DSpark，prompt cache 熱層調到 64 GiB，SSD 層放內建 SSD。CED 0.8.0 起預設開，載入時 log 仍要出現 <code>CED prefill enabled: decoder tail 128</code>。A8 prefill（<code>a8_prefill_enabled</code>）維持關閉，只拿來做開、關對照；只有在 0.7.4.dev1 手動存過 A8 開的模型會保留，要改回。Advanced 的 Keep GPU Awake After Requests 調長（預設 5 分鐘）。不要開 MoE expert offload，會停用 DSpark。</li>
+      <li><strong>設定記憶體上限。</strong> 先看預設值：<code>sysctl iogpu.wired_limit_mb</code> 和 Metal 的 <code>recommendedMaxWorkingSetSize</code>。macOS 27.2 上 512GB 的預設 Metal 上限約 480 GB（11/13 一位 512GB 使用者的 oMLX log；改設 491520 跟不設沒差）。所以不要設 483328，改成確認預設值後明確設成同樣的值（例如 <code>491520</code>，480 GiB）寫進 LaunchDaemon。#5165（卸載模型把上限重設成 0）已在 oMLX 0.8.0 修好；明確設定的理由是 #4040：沒設時閒置約 2 秒後第一個 forward 卡約 900 ms。oQ4e-mtp 放 RAM 的峰值到 408 GB，上限要高於這個值。oMLX 0.8.0 的 Keep GPU Awake After Requests（預設 5 分鐘，可調長）處理閒置後收回 wired 記憶體，coding agent 兩次請求可能超過 5 分鐘，建議調長。另外在 <code>omlx serve</code> 的環境設 <code>MLX_METAL_RESIDENCY_REFRESH_INTERVAL_MS=1000</code>：256GB 的機器上有三位使用者靠它避開閒置後重新 wire 時的 watchdog panic（#4981），512GB 還沒人測。macOS 27.3 beta 2（11/16）也沒提 wired limit。台灣訂單大約 2027 年 1 月才到，到時再查一次最新版本。</li>
+      <li><strong>確認 Neural Accelerator 有在用。</strong> MLX 0.32.4 以上（11/25 出了 0.32.5，多了一批 M5 的 NAX kernel，oMLX 下一版才會帶）；llama.cpp b10733 以上而且 log 出現 <code>has tensor = true</code>。不要拿 LM Studio 內建的 llama.cpp 當基準。</li>
+      <li><strong>規劃 2TB SSD。</strong> 兩個主力候選：DeepSeek oQ4e-ngram-mtp 512 GB、MiniMax 官方權重 252 GB，合計約 764 GB，再加 SSD prompt cache 100–200 GB。要留 GLM-5.3-Flash 8-bit 當備援的話再加約 343 GB（社群現成的 oQ8e-mtp 342.2 GB，或 mlx-community 11/22 的 oQ8-mtp，都沒有 KLD），合計約 1,300 GB 還放得下。不要在本機留 BF16／FP8 原始檔；GLM 若要自己轉 8-bit，轉換時會同時佔 328＋343 GB，轉完就刪原檔。要拿 Unsloth 的 UD-Q8_K_XL 當精度對照的話，SSD 再多 508 GB，2TB 會放不下，用外接碟或做完就刪。冷備份放外接 Thunderbolt 5 SSD，但不要直接從外接碟讀。</li>
+      <li><strong>裝 oMLX 到貨時的最新正式版（至少 0.8.3），先跑主力配置。</strong> 0.8.3 起 DeepSeek 的 Lightning MTP 預設深度是 5，以前手動存成 3 的會變回 Model default。 DeepSeek oQ4e-ngram-mtp、Engram SSD offload、DSpark，prompt cache 熱層調到 64 GiB，SSD 層放內建 SSD。CED 0.8.0 起預設開，載入時 log 仍要出現 <code>CED prefill enabled: decoder tail 128</code>。A8 prefill（<code>a8_prefill_enabled</code>）維持關閉，只拿來做開、關對照；只有在 0.7.4.dev1 手動存過 A8 開的模型會保留，要改回。Advanced 的 Keep GPU Awake After Requests 調長（預設 5 分鐘）。不要開 MoE expert offload，會停用 DSpark。</li>
       <li><strong>用自己的 agent trace 量測。</strong> 在 4K、64K、256K、1M 下量 prefill、decode、cache 命中率和峰值記憶體。每次 A/B 都在同一個 engine 裡開關 speculative decoding，thinking 設定一致，以 temperature 1 為準、0 當對照。DeepSeek 的 prefill 在 CED 開、關各量一次。連續跑冷的長 prompt 時 GPU 會降頻（oMLX #5121 在 M3 Ultra 上 prefill 最多掉 65%；回報者已確認是 GPU 超過 80–82 °C 降頻，風扇固定 3,200 rpm 以上就不掉），量測時把風扇固定在最高轉速，或每輪之間讓機器降溫。另一種情況不是過熱：TensorFold #1720 的測試者在 M5 Ultra 512GB 上跑了約半小時後，GPU 滿載但時脈很低，速度掉到三分之一，持續三小時，thermal pressure 一直是 nominal，重開機才恢復，原因不明。每輪量測前先跑一格固定的對照，數字掉了就重開機再量。</li>
-      <li><strong>換備選模型跑同一組 trace。</strong> GLM-5.3-Flash 8-bit、Qwen3.8-Flash-Next oQ8e、MiniMax M3.1 Flash 官方權重各跑一次；GLM 在 512GB 上已有人用 recipe 版 oMLX 跑到 1.04M、峰值約 263 GB 沒有 OOM，用正式版再確認一次。DeepSeek 也用 ds4（main，#1073 已在 11/2 合併；ds4 沒有 release）跑一次 MXFP4 GGUF 對照，中文文件要注意 #1255 的 tokenizer 差異（修正 #1346 未合併）。</li>
+      <li><strong>換第二候選跑同一組 trace。</strong> MiniMax M3.1 Flash 官方權重跑一次；時間夠的話也跑備援的 GLM-5.3-Flash 8-bit（在 512GB 上已有人用 recipe 版 oMLX 跑到 1.04M、峰值約 263 GB 沒有 OOM，用正式版再確認一次）。DeepSeek 也用 ds4（main，#1073 已在 11/2 合併；ds4 沒有 release）跑一次 MXFP4 GGUF 對照，中文文件要注意 #1255 的 tokenizer 差異（修正 #1346 未合併）。</li>
       <li><strong>檢查長 context 的正確性。</strong> 在 256K 和 1M 做 needle／多文件檢索，對照官方 API 的答案。</li>
-      <li><strong>接 Claude Code。</strong> 透過 Anthropic Messages API 接 oMLX，看每一輪的 prefix 是否 byte 一致、cache 命中率多少；DeepSeek 再跟 ds4 的 DSML 重播比較。把幾個 Claude Code 請求錄下來，用 deepseek-recipe 轉成 token ID，跟 oMLX 實際送進模型的比對。再讓它讀一個含 <code>&lt;｜DSML｜</code> 字串的檔案，確認不會被當成工具呼叫。Claude Code 用 2.1.328 以上；2.1.330（11/20）修了很長的對話壓縮之後卡住幾分鐘的問題。v2.1.323 起不認得的 model ID 一律當 1M context；v2.1.325 起 <code>CLAUDE_CODE_MAX_CONTEXT_TOKENS</code> 對所有不認得的模型 ID 都生效（包括 <code>claude-</code> 開頭的）。Qwen 原生 262K，要設 <code>CLAUDE_CODE_MAX_CONTEXT_TOKENS=262144</code>（或 oMLX 實際設定的 context）。其他模型也建議先用 <code>/autocompact</code> 設一個較小的壓縮點。oMLX 在 prefill 期間每 10 秒送 ping，但 Claude Code 對只有 ping 的串流大約 10 分鐘就會中止；CED 沒開的冷 1M prompt 會超過，會斷的話設 <code>CLAUDE_STREAM_IDLE_TIMEOUT_MS=1800000</code>（自訂 base URL 要 2.1.328 起才有效）。oMLX 有 <code>count_tokens</code>，<code>/context</code> 的數字是準的。從 oMLX 0.8.1 啟動 Claude Code 時會設 <code>CLAUDE_CODE_AUTO_MODE_SERVER=0</code>，auto mode 才能用在本機模型上（#5409）；自己設 base URL 的話要自己加。再刻意讓一次工具呼叫失敗，看模型會不會進入重試迴圈；0.8.1 起 DeepSeek 寫壞的工具呼叫會回 <code>invalid_tool_call</code>（#5416），看 Claude Code 怎麼處理。</li>
+      <li><strong>接 Claude Code。</strong> 透過 Anthropic Messages API 接 oMLX，看每一輪的 prefix 是否 byte 一致、cache 命中率多少；DeepSeek 再跟 ds4 的 DSML 重播比較。把幾個 Claude Code 請求錄下來，用 deepseek-recipe 轉成 token ID，跟 oMLX 實際送進模型的比對。再讓它讀一個含 <code>&lt;｜DSML｜</code> 字串的檔案，確認不會被當成工具呼叫。Claude Code 用 2.1.328 以上；2.1.330（11/20）修了很長的對話壓縮之後卡住幾分鐘的問題，2.1.331（11/23）起自訂 endpoint 回沒有名稱的 tool call 不再當掉、改成報錯繼續，2.1.332（11/25）起自動壓縮連續失敗後會在 context 上限再壓一次。2.1.332 起 Desktop app 的 Code 分頁會忽略不是 <code>claude</code> 開頭的模型 ID，接本機 server 用 CLI。oMLX 0.8.3 起 Claude Code 的 WebSearch 工具可以在本機模型上用（#5342）。v2.1.323 起不認得的 model ID 一律當 1M context；v2.1.325 起 <code>CLAUDE_CODE_MAX_CONTEXT_TOKENS</code> 對所有不認得的模型 ID 都生效（包括 <code>claude-</code> 開頭的）。兩個主力候選都是原生 1M，<code>CLAUDE_CODE_MAX_CONTEXT_TOKENS</code> 設成 oMLX 實際設定的 context；換成原生 262K 的模型（例如 Qwen）時要跟著改。其他模型也建議先用 <code>/autocompact</code> 設一個較小的壓縮點。oMLX 在 prefill 期間每 10 秒送 ping，但 Claude Code 對只有 ping 的串流大約 10 分鐘就會中止；CED 沒開的冷 1M prompt 會超過，會斷的話設 <code>CLAUDE_STREAM_IDLE_TIMEOUT_MS=1800000</code>（自訂 base URL 要 2.1.328 起才有效）。oMLX 有 <code>count_tokens</code>，<code>/context</code> 的數字是準的。從 oMLX 0.8.1 啟動 Claude Code 時會設 <code>CLAUDE_CODE_AUTO_MODE_SERVER=0</code>，auto mode 才能用在本機模型上（#5409）；自己設 base URL 的話要自己加。再刻意讓一次工具呼叫失敗，看模型會不會進入重試迴圈；0.8.1 起 DeepSeek 寫壞的工具呼叫會回 <code>invalid_tool_call</code>（#5416），看 Claude Code 怎麼處理。</li>
       <li><strong>MiniMax M3.1 Flash 用 oMLX 正式版跑。</strong> 權重 10/23 已釋出、數字已經用 config.json 重算過。0.7.3 正式版（10/31）已含 PR #4777，用官方權重開 1M context 跑第 5 步的 trace。0.8.0 正式版已含 MiniMax 在 M5 上的 prefill 加速（#5084、#5157，M5 Max 切片 64K 的 MoE 層快約 1.75 倍）。M5 Ultra 只有 256GB 的 oQ3e／oQ3.5e 社群上傳（64K 約 830、128K 約 760，0.8.0 以前），官方權重沒有。</li>
     </ol>
   </section>
@@ -476,26 +504,36 @@
   <section id="risks">
     <h2>風險與待確認</h2>
     <ul class="risks">
-      <li>M5 Ultra 512GB 的公開數字都是社群自行回報、沒驗證：oMLX benchmark 上傳（11/9 起；11/12 起看得到 CED、A8。建議配置 oQ4e-ngram-mtp、Engram 放 SSD、CED 開、A8 關，11/13–11/14 的 32K–195K 是 3,525–3,995，這頁取 3,000–3,900，仍只到 195K）、TensorFold 用官方權重的實測（#1720 在 11/13 合併，1.2.8 起是實驗功能，最新 1.3.2）、一份 GLM 的 1.04M 測試，以及 ApacheAE 的 GLM 六組 runtime 比較（11/10，只到 32K）；還沒有媒體評測。MiniMax 的官方權重在 M5 上完全沒有實測，只有 TensorFold 用社群有損 checkpoint 量的數字。</li>
+      <li>M5 Ultra 512GB 的公開數字都是社群自行回報、沒驗證：oMLX benchmark 上傳（11/9 起；11/12 起看得到 CED、A8。建議配置 oQ4e-ngram-mtp、Engram 放 SSD、CED 開、A8 關，11/13–11/14 的 32K–195K 是 3,525–3,995，這頁取 3,000–3,900，仍只到 195K）、TensorFold 用官方權重的實測（#1720 在 11/13 合併，1.2.8 起是實驗功能，最新 1.3.5）、一份 GLM 的 1.04M 測試，以及 ApacheAE 的 GLM 六組 runtime 比較（11/10，只到 32K）；還沒有媒體評測。MiniMax 的官方權重在 M5 上完全沒有實測，只有 TensorFold 用社群有損 checkpoint 量的數字。</li>
       <li>DeepSeek 這條路依賴很新的 runtime（oMLX 0.7.1–0.7.3 都是 10/20 之後才出的正式版，CED 預設值在 0.7.3、0.7.4.dev1、main 之間改了三次，0.8.0 正式版定為 CED 開、A8 關；ds4 還是沒有 release）。oMLX 缺 native kernel 時會靜默退回一般實作，GLM 的 DSA prefill 就差到 845 對 29 tok/s。0.7.2 的 prefill 改成 8,192 token 一個 chunk，16K prompt 的峰值記憶體多 4–7 GB（這頁的暫存已經從 12 調成 18 GiB）。</li>
       <li>CED 是近似算法。oMLX 的 tail 是 128，DeepInfer 是 140（多留 speculative 回退的長度）；oMLX 的 PR 說明 DSpark 驗證不會走 CED 這條路。#5155（11/10）在 M3 Ultra 上量了 CED 開對關：4K–128K 的 KL 0.0008–0.0057、top-1 一致率 97.3–100%，比單純把 prefill chunk 從 2,048 改成 8,192 造成的差異（0.004–0.017）還小，也不隨 context 累積；但每種情況只測一個 prompt。到貨後還是要用長 prompt 比較 CED 開、關的輸出。</li>
       <li>oMLX 把整段 prompt 字串直接 tokenize，檔案或工具結果裡的 DeepSeek 控制 token 字串可能被當成真的控制 token，讓模型誤以為要呼叫工具。還沒實測，見到貨後的第 8 步。Sage S2.1 Flash 的部署指南把同一件事當成必須處理：內容裡的控制 token 字串要當一般文字，否則模型會提前結束，工具呼叫和 reasoning 也會壞掉。</li>
       <li>DeepSeek 官方 repo 有一份 11/17 的回報：官方 API 接 Copilot agent 時，工具參數名稱偶爾變成中文，失敗後進入刪檔重建的迴圈（單一回報，沒有官方回應）。</li>
       <li>Engram 放 SSD 對 decode 速度的影響只有間接數據：M5 Max 128GB 重度 offload 時佔 decode 時間約 6%。FP8 的 Engram 每列比 4-bit 大一倍，到貨後要確認沒有變慢。prefill 方面，512GB 上放 SSD（3,776–3,995）和放 RAM（3,811–3,973）差不多；#5190 說的拖慢是 256GB 放不下 Engram。</li>
       <li>DeepSeek 在 M5 Ultra 上的速度：開 MTP 的 decode 取 60–90，不開 speculative 取 46–52。prefill 改用 512GB 的社群上傳：跟這頁的配置相同（Engram 放 SSD、CED 開、A8 關）32K–195K 是 3,525–3,995；另一位上傳者（含唯一一筆 0.8.0 正式版）只有 3,009–3,180，原因不明，所以取 3,000–3,900。M3 Ultra 換算的方法（×2.3–2.6）對 DeepSeek 已經不適用：M5 專用的 kernel 讓 M5 Ultra 對 M3 Ultra 到約 3–3.7 倍。沒開 CED 只有 1,243–2,406。其他 runtime 的 M5 Ultra 數字都比 oMLX 開 CED 低：llama.cpp pp2048 632，ds4 在 33.5K 是 1,146。</li>
-      <li>GLM-5.3-Flash 在 oMLX 0.7.0.dev2 的長 context 記憶體行為有問題：連 512GB 的 M3 Ultra 跑 256K 重跑都會 OOM。11/13 有人在 M5 Ultra 512GB 用 recipe 版 oMLX main 跑到 1.04M，峰值約 263 GB，沒有 OOM。0.8.0 另有 #5420（還開著）：M5 Ultra 256GB 上約 197K 以上的 GLM prompt 被 prefill memory guard 擋掉。維護者說是 Long Prompt Handling 設成 Full Speed 的關係，改成 Max Context 就好；回報者 11/20 查到是連跑兩次 throughput benchmark，讓 server 留在 Full Speed 沒改回來 <span class="conf" data-c="r">社群回報</span>。到貨後跑完 benchmark，要確認這個設定還是 Max Context。</li>
+      <li>（備援的 GLM-5.3-Flash）oMLX 0.7.0.dev2 的長 context 記憶體行為有問題：連 512GB 的 M3 Ultra 跑 256K 重跑都會 OOM。11/13 有人在 M5 Ultra 512GB 用 recipe 版 oMLX main 跑到 1.04M，峰值約 263 GB，沒有 OOM。0.8.0 另有 #5420（還開著）：M5 Ultra 256GB 上約 197K 以上的 GLM prompt 被 prefill memory guard 擋掉。維護者說是 Long Prompt Handling 設成 Full Speed 的關係，改成 Max Context 就好；回報者 11/20 查到是連跑兩次 throughput benchmark，讓 server 留在 Full Speed 沒改回來 <span class="conf" data-c="r">社群回報</span>。到貨後跑完 benchmark，要確認這個設定還是 Max Context。</li>
       <li>大型 MoE 在 M5 Ultra 上的 decode 效率偏低，跟 M5 Max 比只快約 1.2 倍。原因可能是跨 die 同步，之後的軟體更新不一定能改善。</li>
-      <li>授權：Qwen3.8-Flash-Next 是 qwen-community-1.0；MiniMax M3.1 Flash 是 MiniMax Community License，預設非商用；GLM-5.3-Flash 的 DFlash2 drafter 是 CC BY-NC-ND。</li>
-      <li>MiniMax M3.1 Flash 在 Mac 上的 runtime 還很新：oMLX 0.7.3（10/31）才進正式版，mlx-lm 只有 main 分支，mlx-vlm 0.7.11 起有正式支援但沒有 SSD prompt cache 的實測，ds4 不支援。llama.cpp 11/15 合併了 #32301（#31192 關閉、沒合併），但 Metal 不支援 NVFP4，官方權重的 experts 會退到 CPU。Unsloth 已經出了 GGUF（UD-Q8_K_XL 259.1 GB，experts 維持 NVFP4），是照 #31192 轉的，能不能被 #32301 讀還沒人確認。M3 Ultra 上 prefill 只有 300–370 tok/s，是四個裡最慢的。</li>
-      <li>台灣售價 NT$805,400（512GB／2TB），台灣訂單大約 2027 年 1 月才到貨。同樣預算自組 PC 的話，伺服器記憶體漲價讓 RAM 最多只有 384GB；10/30 社群的 KTransformers fork 加了 expert cache 之後，384GB 可能也跑得動官方精度的 DeepSeek，但還沒人實測，評估見<a href="#pc">自組 PC 分頁</a>。</li>
+      <li>授權：DeepSeek 是 MIT；MiniMax M3.1 Flash 是 MiniMax Community License，預設非商用，商用要標示並通知官方。備援的 GLM-5.3-Flash 是 MIT，但它的 DFlash2 drafter 是 CC BY-NC-ND。</li>
+      <li>MiniMax M3.1 Flash 在 Mac 上的 runtime 還很新：oMLX 0.7.3（10/31）才進正式版，mlx-lm 只有 main 分支，mlx-vlm 0.7.11 起有正式支援但沒有 SSD prompt cache 的實測，ds4 不支援。llama.cpp 11/15 合併了 #32301（#31192 關閉、沒合併），Metal 的 NVFP4 kernel 11/23 才由 #32825 補上（b12672 起，含 MoE 用的 <code>MUL_MAT_ID</code>），還沒人在 Metal 上跑過 MiniMax 的官方權重。Unsloth 已經出了 GGUF（UD-Q8_K_XL 259.1 GB，experts 維持 NVFP4），是照 #31192 轉的，能不能被 #32301 讀還沒人確認。M3 Ultra 上 prefill 只有 300–370 tok/s，大約是 DeepSeek 的三分之一。</li>
+      <li>台灣售價 NT$805,400（512GB／2TB），台灣訂單大約 2027 年 1 月才到貨。同樣預算的自組 PC（伺服器記憶體漲價，RAM 最多只有 384GB）CP 值太低，11/26 起不再評估。</li>
       <li>廠商自訂的格式可能被 runtime 改版弄壞。Unsloth 用非官方的 type 43 存 MXFP8 Engram，主線 llama.cpp 10/29 把 43 號給了 FP8 之後，這些檔變成能載入但輸出亂碼。主力路線用 runtime 原生支援的格式（oMLX 的 oQ4e、ds4 專用的 MXFP4 GGUF），比較不會遇到這種事。</li>
       <li>Runtime 本身也有數值誤差。oMLX #4946 的 PR 量到 M5 的 prefill 目前的 activation 路徑跟 bf16 相比 KL 約 0.0165（A8 是 0.0148），跟 UD-Q4_K_XL 和 Q8_K_XL 之間約 0.004 的權重差距比並不小。#5058 在 oQ4e 上量到：MoE block 跟不量化 activation 的 float matmul 相比，現行 FP8 activation 路徑差 4.7%、A8 差 1.7%。另一方面 #5108 有使用者回報 A8 和 CED 一起開時 thinking 區塊出現不停的「Hmm —」、M5 Ultra 閒置後第一個請求就當機，兩個都關就沒事（沒有單獨測 CED）。到貨後的精度驗證，除了比權重版本，也要拿 bf16 路徑當參考，量 CED 和 A8 開、關的差異。</li>
-      <li>macOS 27 上大量 wired 記憶體的穩定性。oMLX #4981：M5 Ultra 256GB 跑 DeepSeek 服務 coding agent 時，wired 記憶體在請求之間會從約 188 GB 掉到 42–118 GB、2–5 秒後才恢復，10/29 有一次在約 235K context 時 watchdog kernel panic；較新的 build 跑 2 小時 25 分沒當，但仍有掉落。其他 runtime 在 M5 Max、M5 Pro 上也有類似的 watchdog panic 回報 <span class="conf" data-c="r">社群回報</span>。到貨後的 trace 要跑夠久，順便看 wired 記憶體有沒有掉。#5230：M3 Ultra 512GB 升 macOS 27.2.1 後 0.8.0rc1 載入 DeepSeek 每次都當，重灌系統才好（單一回報，11/15 關閉）。11/19 另一位 M3 Ultra 使用者在 0.8.0 也要把 Engram（oMLX 叫 n-gram）表或部分 experts 移出 RAM 才載得進 oQ4e-mtp；第三位把 oMLX 的 memory pressure 改成 Custom、上限設成跟 <code>sysctl</code> 一樣的 490GB 之後，Engram 放 RAM 也能跑，用量約 410GB；原回報者則說要設到 500GB，480、490 都不行，說法不一 <span class="conf" data-c="r">社群回報</span>。這頁的主力配置把 Engram 放 SSD，峰值低很多；到貨後 oMLX 的上限和 <code>iogpu.wired_limit_mb</code> 要一起設。</li>
+      <li>macOS 27 上大量 wired 記憶體的穩定性。oMLX #4981 11/23–11/25 有了避開的方法：三位使用者在 0.8.3 上確認，GPU keep-warm 的 300 秒一過，閒置模型的 wired 記憶體就從約 211 GB 掉到 4.4 GB，下一次大 prefill 重新 wire 約 200 GB 時 watchdog panic（一位 4 天 12 次，都在 coding agent 的壓縮 prefill）；在 <code>omlx serve</code> 的環境設 <code>MLX_METAL_RESIDENCY_REFRESH_INTERVAL_MS=1000</code> 之後兩位都沒再當，閒置 9 分鐘 wired 仍維持 225–227 GB <span class="conf" data-c="r">社群回報</span>。回報的都是 256GB 的機器，oMLX 還沒把它設成預設，見到貨後的第 1 步。原本的回報：M5 Ultra 256GB 跑 DeepSeek 服務 coding agent 時，wired 記憶體在請求之間會從約 188 GB 掉到 42–118 GB、2–5 秒後才恢復，10/29 有一次在約 235K context 時 watchdog kernel panic；較新的 build 跑 2 小時 25 分沒當，但仍有掉落。其他 runtime 在 M5 Max、M5 Pro 上也有類似的 watchdog panic 回報 <span class="conf" data-c="r">社群回報</span>。到貨後的 trace 要跑夠久，順便看 wired 記憶體有沒有掉。#5230：M3 Ultra 512GB 升 macOS 27.2.1 後 0.8.0rc1 載入 DeepSeek 每次都當，重灌系統才好（單一回報，11/15 關閉）。11/19 另一位 M3 Ultra 使用者在 0.8.0 也要把 Engram（oMLX 叫 n-gram）表或部分 experts 移出 RAM 才載得進 oQ4e-mtp；第三位把 oMLX 的 memory pressure 改成 Custom、上限設成跟 <code>sysctl</code> 一樣的 490GB 之後，Engram 放 RAM 也能跑，用量約 410GB；原回報者則說要設到 500GB，480、490 都不行，說法不一 <span class="conf" data-c="r">社群回報</span>。這頁的主力配置把 Engram 放 SSD，峰值低很多；到貨後 oMLX 的上限和 <code>iogpu.wired_limit_mb</code> 要一起設。</li>
     </ul>
   </section>
 
   <section id="changelog">
     <h2>更新紀錄</h2>
+    <h3>2026-11-26</h3>
+    <ul class="plain">
+      <li><strong>新增 benchmark 門檻，主力候選剩兩個。</strong>放得下（≥ 4-bit、≥ 256K）、DeepSWE v1.1 自報 ≥ 70、第三方 agentic 分數不低於領先者的一半，三關都過才列入。DeepSeek 和 MiniMax 留下；GLM-5.3-Flash（63.4）和 Qwen3.8-Flash-Next（58.7）移出主力，GLM 留作備援。它們的量化和速度明細從 <code>data.js</code> 拿掉，留在 GitHub Pages repo 的歷史裡。Server 表也拿掉 GLM、Qwen 兩欄。</li>
+      <li><strong>Inkling 系列。</strong>Thinking Machines 的五個 open weights 都看過，沒有更大的 Inkling 2。Inkling 2 Small 第一次有 M5 Ultra 512GB 的數字（prefill 32K 1,310、128K 824、200K 545），只有 DeepSeek 的 1/3 到 1/7，第三方 Terminal-Bench 只有 12–13，從觀察名單拿掉。Inkling 2 Mini 寫進新的 M1 Pro 32GB 分頁。</li>
+      <li><strong>DeepSeek 的 prefill 上限 3,900 → 4,050。</strong>11/21–11/25 有 7 個正式版、CED 開、A8 關的上傳，仍分成兩群（3,680–4,060 和 3,150–3,335），跟版本和 Engram 放哪都無關。</li>
+      <li><strong>工具版本。</strong>oMLX 0.8.3（11/22，DeepSeek 的 MTP 預設深度 5、Claude Code 的 WebSearch 能用本機模型）；MLX 0.32.5（11/25，含 #4767，oMLX main 已跟上、還沒 release）；mlx-vlm 0.8.1（含 DeepSeek 的 DSML 工具呼叫，沒人驗證全尺寸）；llama.cpp #32825 讓 Metal 有 NVFP4 kernel（MiniMax 官方權重不再一定退回 CPU，但沒人跑過）；TensorFold 1.3.5（#3547 的官方 FP8 32K prompt 1,505–1,512）；Splash 1.7.3、LM Studio 0.4.29、Ollama 0.40.18、Claude Code 2.1.332（三個追蹤的設定都沒改）。</li>
+      <li><strong>oMLX #4981 有避開的方法。</strong>在 <code>omlx serve</code> 的環境設 <code>MLX_METAL_RESIDENCY_REFRESH_INTERVAL_MS=1000</code>，256GB 的機器上就沒再 watchdog panic，寫進到貨後的第 1 步。</li>
+      <li><strong>新模型。</strong>ERNIE 5.5 Flash Preview（11/23，自報 DeepSWE 71.2）過第 1 關，但沒有第三方數字、Mac 上也還沒有 runtime，列待定。Xing4.1-Preview、Ling-3.2-air 不列入。Vals Index 全面往下修 1.5–2.4 分。</li>
+      <li><strong>移除自組 PC 分頁。</strong>同預算的 RAM 最多 384GB，CP 值太低，不再評估。頁面改放在 GitHub Pages，claude.ai artifact 不再更新。研究筆記在 <code>research_notes/2026-11-26 全面更新/</code>（<code>inkling_and_benchmark_gate.md</code>、<code>tools_sweep.md</code>），資料蒐集交給 Claude subagent，門檻用的分數和主要的版本、PR 狀態自己用 gh、HF API 和 tbench.ai 重查過。</li>
+    </ul>
     <h3>2026-11-21</h3>
     <ul class="plain">
       <li><strong>Splash 列進 Server 表。</strong>Inco AI 的 Apple Silicon 專用引擎，最新 1.7.0（11/17）。正式支援的只有 Qwen3.8-Flash-Next（只吃 GGUF）；DeepSeek 只有還沒合併的 PR #619，GLM、MiniMax 不支援，所以判斷是「觀察，只在選 Qwen 時有用」。M3 Ultra 512GB 的社群實測（Flash-Next UD-Q4_K_XL、DeepSeek 2-bit 級）寫在表裡，M5 Ultra 還沒有數字。speculative decoding 和混合部署兩節的 Splash 版本跟著更新。主力配置不變。研究筆記在 <code>research_notes/2026-11-21 Splash 與 Inkling 2 Mini/</code>。</li>
@@ -549,7 +587,7 @@
     </ul>
     <h3>2026-10-29</h3>
     <ul class="plain">
-      <li><strong>台灣售價公布。</strong>512GB／2TB 是 NT$805,400。同樣預算自組 PC 的評估另外放在<a href="#pc">自組 PC 分頁</a>。</li>
+      <li><strong>台灣售價公布。</strong>512GB／2TB 是 NT$805,400。同樣預算自組 PC 的評估另外放在自組 PC 分頁（11/26 移除）。</li>
       <li><strong>llama.cpp 主線支援 DeepSeek。</strong>#30817 關閉，改由 #31086 在 10/25 合併，含 DSpark，Engram 改轉 BF16。但重用 prompt cache 會出現單一 token 錯字（#30944），修好前不能接 Claude Code。<code>ud-q8</code> 的 Engram 改用 BF16 計算，SSD 從 203 GB 改成約 393 GB。Server 表的 llama.cpp 改成 0.8.0。</li>
       <li><strong>MiniMax M3.1 的 llama.cpp 支援在 PR #31192。</strong>還沒合併，Unsloth 的 GGUF 要自己 build 這個 PR。</li>
       <li><strong>Strata 更新到 0.2.7.1。</strong>多了 DeepSeek，Mac 版只有 2-bit、從 SSD 串流，對主力配置沒有影響。</li>
@@ -592,7 +630,7 @@
     <ol>
       <li><a href="#duo-summary">結論</a></li>
       <li><a href="#duo-price">價格與規格</a></li>
-      <li><a href="#duo-models">四個模型</a></li>
+      <li><a href="#duo-models">候選模型</a></li>
       <li><a href="#duo-cache">Prompt cache</a></li>
       <li><a href="#duo-speed">速度</a></li>
       <li><a href="#duo-separate">分開跑或先買一台</a></li>
@@ -608,10 +646,10 @@
   <main id="duo-main">
 
   <header id="duo-summary" class="hero">
-    <p class="hero-meta">整理於 2026 年 10 月 29 日，10 月 31 日、11 月 11 日、11 月 12 日、<time datetime="2026-11-19">11 月 19 日</time>更新。同規格的 M5 Ultra 256GB 一台 NT$402,900，兩台的價格跟一台 512GB 差不多。這個分頁評估兩台用 Thunderbolt 5 串聯的方案，以及怎麼接。單台 512GB 的規劃見 <a href="#mac">M5 Ultra 512GB 分頁</a></p>
+    <p class="hero-meta">整理於 2026 年 10 月 29 日，10 月 31 日、11 月 11 日、11 月 12 日、11 月 19 日、<time datetime="2026-11-26">11 月 26 日</time>更新。同規格的 M5 Ultra 256GB 一台 NT$402,900，兩台的價格跟一台 512GB 差不多。這個分頁評估兩台用 Thunderbolt 5 串聯的方案，以及怎麼接。單台 512GB 的規劃見 <a href="#mac">M5 Ultra 512GB 分頁</a></p>
     <h1>兩台 M5 Ultra 256GB<br>值不值得串聯</h1>
     <p class="lead">
-      兩台 256GB 加兩條線是 NT$810,180，只比一台 512GB 多 NT$4,780，還多一倍的 GPU 和一顆 SSD。精度不是問題：DeepSeek 和 GLM 8-bit 可以用 oMLX 的實驗性叢集切到兩台，Qwen 單台就放得下。10/31 時擋住這個方案的三個軟體問題，兩個已在 11/18 的 oMLX 0.8.0 正式版修好：叢集的 prompt cache 依餘裕給 2–8 格，DeepSeek 的 tensor parallel 也能跑 CED prefill。剩下的<strong>穩定性</strong>反而多了新回報：oMLX 的 tensor parallel 在兩台 M5 Ultra 上出現過啟動時 GPU timeout，mlx-serve 的兩台 tensor parallel 卡死後要兩台都重開，TensorFold 的兩台模式在 macOS 27.2 上啟動不了；MLX 的斷線修正仍沒 release，oMLX 0.8.0 也還用不到。第一次有同一個 runtime 的兩台對單台 M5 Ultra 對照（TensorFold 跑 Qwen，社群修正版）：兩台的 decode 只有單台的約 0.9 倍，prefill 約 2.2 倍。四個候選模型都放得進 512GB，叢集最大的好處「放得下」用不到，所以<strong>建議仍是照原計畫買一台 512GB</strong>。以後想加速，oMLX 0.8.0 正式版的 Prefill Accelerator 讓第二台 Mac 只幫忙算 prefill，模型和 cache 都留在 512GB 那台，比組叢集穩。
+      兩台 256GB 加兩條線是 NT$810,180，只比一台 512GB 多 NT$4,780，還多一倍的 GPU 和一顆 SSD。精度不是問題：DeepSeek 和 GLM 8-bit 可以用 oMLX 的實驗性叢集切到兩台，Qwen 單台就放得下。10/31 時擋住這個方案的三個軟體問題，兩個已在 11/18 的 oMLX 0.8.0 正式版修好：叢集的 prompt cache 依餘裕給 2–8 格，DeepSeek 的 tensor parallel 也能跑 CED prefill。剩下的<strong>穩定性</strong>反而多了新回報：oMLX 的 tensor parallel 在兩台 M5 Ultra 上出現過啟動時 GPU timeout，mlx-serve 的兩台 tensor parallel 卡死後要兩台都重開，TensorFold 的兩台模式在 macOS 27.2 上啟動不了；MLX 的斷線修正仍沒 release，oMLX 0.8.0 也還用不到。第一次有同一個 runtime 的兩台對單台 M5 Ultra 對照（TensorFold 跑 Qwen，社群修正版）：兩台的 decode 只有單台的約 0.9 倍，prefill 約 2.2 倍。11/26 起 Mac 分頁的主力候選先過一道 benchmark 門檻，只剩 DeepSeek 和 MiniMax，兩個都放得進 512GB，叢集最大的好處「放得下」用不到；11/25 又有一位在兩台 256GB 上用 oMLX 0.8.3 跑 DeepSeek，context 過了約 300K 就每輪重算 cache、400K 附近 rank 0 等不到資料逾時。所以<strong>建議仍是照原計畫買一台 512GB</strong>。以後想加速，oMLX 0.8.0 正式版的 Prefill Accelerator 讓第二台 Mac 只幫忙算 prefill，模型和 cache 都留在 512GB 那台，比組叢集穩。
     </p>
 
     <dl class="decisions">
@@ -645,8 +683,8 @@
   </section>
 
   <section id="duo-models">
-    <h2>四個模型</h2>
-    <p class="measure">兩台合計約 460 GiB，跟單台 512GB 的 480 GiB 只差約 4%。所以能不能維持精度，要看有沒有 runtime 能把那個架構切到兩台，以及切開後還剩哪些功能。下表的配置都跟 512GB 方案相同。</p>
+    <h2>候選模型</h2>
+    <p class="measure">11/26 起 Mac 分頁的主力候選只剩 DeepSeek 和 MiniMax（見 <a href="#gate">benchmark 門檻</a>）。GLM、Qwen 兩列保留當參考，GLM 是 Mac 分頁的備援。兩台合計約 460 GiB，跟單台 512GB 的 480 GiB 只差約 4%。所以能不能維持精度，要看有沒有 runtime 能把那個架構切到兩台，以及切開後還剩哪些功能。下表的配置都跟 512GB 方案相同。</p>
     <div class="table-wrap">
       <table class="hybrid">
         <thead><tr><th scope="col">模型（512GB 方案的配置）</th><th scope="col">兩台能不能同精度</th><th scope="col">Runtime 與切法</th><th scope="col">每台約佔</th><th scope="col">跟 512GB 方案比，失去什麼</th></tr></thead>
@@ -866,9 +904,11 @@ ANTHROPIC_BASE_URL=http://127.0.0.1:8000 claude</code></pre>
     <p class="measure">叢集沒有 failover，可用度是兩台可用度的乘積。日常維運也多一倍：兩台都要開 RDMA（macOS 27 改在系統設定，不用再進 Recovery），macOS 要同步升級而且不能透過 SSH 做，wired limit 每次開機都要重設，出事時兩台都要重開。</p>
     <ul class="risks">
       <li><strong>對端消失會卡死，GitHub 上關了，實際沒驗證。</strong>MLX #3910（7/24）：對端消失時 <code>recv</code> 會無限自旋，沒有錯誤也沒有 log；改用 SIGKILL 之後，wired 記憶體會被鎖到重開機。11/3 維護者把它併進 #4278，#4278 再以「Closed by #4767」關閉。但 #4767 只測了拔線，沒測對端行程被殺、線還連著的情況，#3910 底下的分析說這種情況 verbs 層什麼都不回報。11/18 mlx-serve #1237 又有一筆：兩台 M3 Ultra 的 tensor parallel 在短的重複 prompt 上卡死，殺掉 process 後兩台 GPU 仍是 100%、約 314–332 GB 被鎖住，要兩台都重開（回報者換過 libjaccl，不能排除是它）<span class="conf" data-c="r">社群回報</span>。mlx-serve 的文件也寫對端在協定中途消失會讓另一台在 Apple 的 RDMA library 裡 crash。</li>
-      <li><strong>拔線兩台一起當，main 已修。</strong>MLX #4192（8/11）：拔掉一端的線，兩台會一起 segfault。10/30 由 #4767 關閉：拔線後兩端在約 300 ms 內丟出可以捕捉的錯誤（作者實測 9/9 次）。到 11/21 還沒進 release（最新仍是 10/14 的 v0.32.4，main 已是 0.32.5），11/21 的 oMLX 0.8.1 仍釘在 <code>mlx==0.32.4</code>，拿不到這個修正；上層的 runtime 也要自己拆掉 group 重建。</li>
+      <li><strong>拔線兩台一起當，MLX 0.32.5 已修。</strong>MLX #4192（8/11）：拔掉一端的線，兩台會一起 segfault。10/30 由 #4767 關閉：拔線後兩端在約 300 ms 內丟出可以捕捉的錯誤（作者實測 9/9 次）。11/25 的 MLX v0.32.5 終於含 #4767，oMLX main 同一天跟上（#5652），但 oMLX 最新正式版 0.8.3 仍釘在 <code>mlx==0.32.4</code>，要等下一版；上層的 runtime 也要自己拆掉 group 重建。</li>
+      <li><strong>DeepSeek 長 context 的 cache 失效和逾時。</strong>oMLX #5643（11/25）：兩台 M5 Ultra 256GB 用 0.8.3 跑 DeepSeek，叢集終於跑起來，但 context 用到約 300K 之後每輪都重算 cache，首 token 要等幾分鐘；400–420K 常出現 <code>rank-zero inference stream timed out: no rank-zero data for 300s</code>，一輪從幾秒變成 9 分 14 秒。沒寫是 tensor parallel 還是 pipeline、用哪個量化。同一人的 #5619：叢集不收 DeepSeek 官方 FP8，要先轉成 oQ <span class="conf" data-c="r">社群回報</span>。另一筆 #5550（11/23）：0.8.3 在 M5 Ultra 256GB 上載 DeepSeek oQ2.5h 到 172 GiB 時被 macOS 以 low-swap 殺掉，0.8.2 正常。</li>
+      <li><strong>Engram 放 SSD 時的 watchdog panic 有避開的方法。</strong>oMLX #4981：256GB 跑 DeepSeek 一定要把 Engram 放 SSD，GPU keep-warm 的 300 秒一過，閒置模型的 wired 記憶體會從約 211 GB 掉到 4.4 GB，下一次大 prefill 重新 wire 時 watchdog panic。11/23–11/25 三位使用者在 0.8.3 上確認（含兩台 M5 Ultra 256GB），在 <code>omlx serve</code> 的環境設 <code>MLX_METAL_RESIDENCY_REFRESH_INTERVAL_MS=1000</code> 後沒再當 <span class="conf" data-c="r">社群回報</span>。兩台都要設。</li>
       <li><strong>Tensor parallel 的 GPU timeout。</strong>oMLX #5221（11/12）：0.8.0rc1 的 DeepSeek tensor parallel 第一個 prefill 就 GPU timeout，兩個 rank 一起退出；另一位在兩台 M5 Ultra 256GB 上裝完 rc1 的頭兩次載入也遇到。維護者：兩台每一層都在 GPU 上互等，一台晚超過約 5 秒，Metal 就取消另一台的工作。256GB 的 DeepSeek 必須從 SSD 讀 Engram，正是會讓一台突然變慢的情況 <span class="conf" data-c="e">推估</span>。</li>
-      <li><strong>macOS 27.2 和 TensorFold。</strong>TensorFold 的兩台模式讓 GPU 在 command buffer 裡等對方寫入的旗標，macOS 27.2 上看不到，release 版的 GLM、Qwen 兩台模式都起不來（#3158、#3408）；社群修正還在 draft。換 macOS 小版本也可能讓叢集壞掉。</li>
+      <li><strong>macOS 27.2 和 TensorFold。</strong>TensorFold 的兩台模式讓 GPU 在 command buffer 裡等對方寫入的旗標，macOS 27.2 上看不到，release 版的 GLM、Qwen 兩台模式都起不來（#3158、#3408）；社群修正還在 draft。11/22 第二對 M5 Ultra 512GB（macOS 27.2.1）用修正版 #3688 跑 Flash Next：兩台的 decode 比單台慢 7–10%（drafted 133.6 對 143.7），8K、16K prompt 約快 1.75 倍，1K prompt 兩台反而慢，輸出逐 token 相同 <span class="conf" data-c="r">社群回報</span>。換 macOS 小版本也可能讓叢集壞掉。</li>
       <li><strong>重疊請求凍住。</strong>oMLX #3039：兩台 M4 Max 走 JACCL 的 tensor parallel，兩個重疊的串流請求讓兩個 rank 在 collective 裡凍住、各吃 100% CPU，heartbeat 還顯示正常，SIGTERM 無效。11/5 被 stale bot 關掉，沒有修。mlx-serve 的兩台 tensor parallel 也記錄過一次 <code>Fence::wait</code> 卡住，之後 25 輪沒再重現 <span class="conf" data-c="r">社群回報</span>。</li>
       <li><strong>線路自己掉。</strong>有人在 5 台 M3 Ultra 上遇過兩次線路掉線造成的 production crash，當掉的機器約有 140GB 記憶體被鎖住 <span class="conf" data-c="r">社群回報</span>。</li>
       <li><strong>長 prompt 的 GPU timeout。</strong>長 prefill 會觸發 Metal GPU timeout，接著連鎖出現「Couldn't allocate protection domain」，要把 prefill-step-size 降到 2048 並清掉殘留的 process <span class="conf" data-c="r">社群回報</span>。</li>
@@ -880,11 +920,11 @@ ANTHROPIC_BASE_URL=http://127.0.0.1:8000 claude</code></pre>
 
   <section id="duo-revisit">
     <h2>什麼時候重新評估</h2>
-    <p class="measure">出現下面任何一項，就值得重新評估兩台（或 512GB 再加一台）的方案。11/19 的狀況是：prompt cache 那項已在 0.8.0 正式版成立，但沒有兩台實機驗證；實測和穩定性的新證據都偏負面（同 runtime 的兩台 decode 比單台慢，新增三筆卡死或起不來的回報）。四個模型都放得進 512GB 這件事沒變，所以建議仍是一台 512GB。</p>
+    <p class="measure">出現下面任何一項，就值得重新評估兩台（或 512GB 再加一台）的方案。11/26 的狀況是：MLX 0.32.5 終於含斷線修正，但 oMLX 正式版還沒帶；兩台跑 DeepSeek 第一次有長時間使用的回報，結果是 300K 以上 cache 失效、400K 附近逾時（#5643）；第二筆同 runtime 的兩台對單台（TensorFold 跑 Flash Next）decode 仍比單台慢 7–10%。主力候選只剩 DeepSeek 和 MiniMax，都放得進 512GB，所以建議仍是一台 512GB。</p>
     <ul class="risks">
       <li><strong>Prompt cache。</strong>oMLX 叢集拿掉 1 格 RAM cache 的限制（#3062），或公開 Claude Code 在 SSD 快照上的命中率。11/19 現況：成立一半。#5062 已進 0.8.0 正式版（11/18），叢集 RAM cache 依餘裕給 2／4／8 格（balanced 8）。仍然只在單機模擬驗證，沒有兩台實機、沒有 Claude Code 的命中率；byte 上限仍關閉。mlx-serve 的兩台 tensor parallel 也有 RAM＋SSD prefix cache。</li>
       <li><strong>實測。</strong>有人公開兩台 M5 Ultra 走 JACCL（不是 ring）跑 DeepSeek 或 GLM 的數字，decode 比單機快至少 1.3 倍，而且確認 CED 在叢集裡有效。11/19 現況：沒有成立，新證據偏負面。DeepSeek 只有 mlx-serve 的 63.3／62.7 tok/s（沒有單機 512GB 基準）和不對稱的 45–52 tok/s（#5272，11/21 進了 0.8.1 正式版，仍不是兩台 M5 Ultra）；同 runtime 的兩台對單台（TensorFold 跑 Qwen）decode 是 0.87–0.91 倍，不是 1.3 倍。GLM 有 d-inference 的 4-bit 等級 pipeline 數字，沒有單機基準；8-bit 只有 oQ8e 跑起來（只驗 tool call）。CED 已進 0.8.0，開關有送到 tensor parallel rank，但沒有兩台 M5 Ultra 的數字。</li>
-      <li><strong>穩定性。</strong>MLX 合併死節點偵測，修好 #3910 和 #4192。11/19 現況：沒有成立，比 11/11 更差。MLX 仍沒有含 #4767 的 release，oMLX 0.8.0 仍釘在 <code>mlx==0.32.4</code>（11/21 的 0.8.1 也一樣）；沒有人驗證行程被殺的情況，反而多了三筆負面回報：oMLX #5221（tensor parallel 啟動時 GPU timeout，兩台 M5 Ultra 256GB 也遇過）、mlx-serve #1237（卡死，殺掉後要兩台重開）、TensorFold #3158／#3408（macOS 27.2 上兩台模式起不來）。oMLX #3039（重疊請求凍住）仍沒修。</li>
+      <li><strong>穩定性。</strong>MLX 合併死節點偵測，修好 #3910 和 #4192。11/26 現況：一半。MLX v0.32.5（11/25）含 #4767，oMLX main 已跟上，正式版 0.8.3 還沒；#5643 是兩台跑 DeepSeek 第一份長時間使用的回報，300K 以上 cache 失效、400K 附近逾時。11/19 現況：沒有成立，比 11/11 更差。MLX 仍沒有含 #4767 的 release，oMLX 0.8.0 仍釘在 <code>mlx==0.32.4</code>（11/21 的 0.8.1 也一樣）；沒有人驗證行程被殺的情況，反而多了三筆負面回報：oMLX #5221（tensor parallel 啟動時 GPU timeout，兩台 M5 Ultra 256GB 也遇過）、mlx-serve #1237（卡死，殺掉後要兩台重開）、TensorFold #3158／#3408（macOS 27.2 上兩台模式起不來）。oMLX #3039（重疊請求凍住）仍沒修。</li>
       <li><strong>MiniMax。</strong>叢集 runtime 拿回 DSpark 和 Anthropic API。11/19 現況：成立一半，沒有變。exo main 能切官方 NVFP4、有 <code>/v1/messages</code>，但 11/6 之後沒有新 commit、沒有 release、沒有 DSpark；oMLX 叢集的 MiniMax 仍沒有成功回報（#4827）。</li>
       <li><strong>Prefill Accelerator（512GB 再加一台）。</strong>有人公開 M5 Ultra 當主機、加一台輔助機的 prefill 數字，DeepSeek 64K 至少快 1.3 倍，而且進了 oMLX 正式版。這條路不碰叢集的 cache 和斷線問題，是「以後加一台」最可能先成立的選項。11/19 現況：成立一半。已進 0.8.0 正式版，輔助機記憶體不足會降層數、離線會重試；但仍沒有 M5 Ultra 當主機的數字，M5 Ultra 當輔助機也只有一筆設定問題的回報（#5118）。</li>
       <li><strong>Apple Harbor。</strong>Claris 的 Harbor 公開，而且同時做到四件事：有 Anthropic 相容的 API（或至少能穩定接 Claude Code）、prompt cache 是多格加 SSD、能載入本機自訂的 checkpoint（例如 oMLX 的 oQ）、拔線或某台當機時能自己恢復。11/19 現況：沒有成立，沒有新消息。仍是 private preview，報名頁沒有 API、prompt cache、恢復、價格、日期。</li>
@@ -893,6 +933,11 @@ ANTHROPIC_BASE_URL=http://127.0.0.1:8000 claude</code></pre>
 
   <section id="duo-changelog">
     <h2>更新紀錄</h2>
+    <h3>2026-11-26</h3>
+    <ul class="plain">
+      <li><strong>候選模型。</strong>Mac 分頁加了 benchmark 門檻，主力候選只剩 DeepSeek 和 MiniMax，GLM 改成備援、Qwen 移出；「四個模型」一節改名，GLM、Qwen 兩列保留當參考。結論不變：兩個都放得進 512GB。</li>
+      <li><strong>穩定性。</strong>MLX v0.32.5（11/25）含斷線修正 #4767，oMLX main 跟上但正式版 0.8.3 還沒帶。新增 oMLX #5643（兩台 256GB 跑 DeepSeek，300K 以上 cache 失效、400K 附近 rank 0 逾時）、#5550（0.8.3 在 256GB 上載入被殺）、#4981 的避開方法（<code>MLX_METAL_RESIDENCY_REFRESH_INTERVAL_MS=1000</code>，兩台都要設）。TensorFold #3408 有第二對 M5 Ultra 的兩台對單台：Flash Next 的 decode 慢 7–10%、長 prompt 約快 1.75 倍。研究筆記在 <code>research_notes/2026-11-26 全面更新/tools_sweep.md</code>。</li>
+    </ul>
     <h3>2026-11-21</h3>
     <ul class="plain">
       <li><strong>oMLX 0.8.1 收進依記憶體切的 tensor parallel。</strong>#5272（DeepSeek 依每台記憶體切）和疊在上面的 #5274（Engram 放 SSD 時 sampled decode 48 → 54.5）都進了 11/21 的 0.8.1。數字仍只有 M5 Ultra 256GB＋M5 Max 128GB 這一組，沒有兩台 M5 Ultra 的，「什麼時候重新評估」的實測項維持不成立。0.8.1 仍釘在 <code>mlx==0.32.4</code>。#3071（叢集丟掉 per-model 設定）11/19 被 bot 以過期關閉、沒有修正，串聯步驟還是要檢查。建議不變。</li>
@@ -984,6 +1029,11 @@ ANTHROPIC_BASE_URL=http://127.0.0.1:8000 claude</code></pre>
       <div>
         <h3>oMLX、ds4、其他 runtime</h3>
         <ul>
+          <li><a href="https://github.com/jundot/omlx/issues/5643" rel="noopener">oMLX #5643：兩台 M5 Ultra 256GB 跑 DeepSeek，300K 以上 cache 失效、rank 0 逾時（11/25）</a></li>
+          <li><a href="https://github.com/jundot/omlx/issues/5550" rel="noopener">oMLX #5550：0.8.3 在 M5 Ultra 256GB 載入 DeepSeek 被殺（11/23）</a></li>
+          <li><a href="https://github.com/jundot/omlx/issues/4981" rel="noopener">oMLX #4981：Engram 放 SSD 時的 watchdog panic 與 MLX_METAL_RESIDENCY_REFRESH_INTERVAL_MS</a></li>
+          <li><a href="https://github.com/ml-explore/mlx/releases/tag/v0.32.5" rel="noopener">MLX v0.32.5（11/25，含 #4767）</a></li>
+          <li><a href="https://github.com/ashhart/TensorFold/issues/3408" rel="noopener">TensorFold #3408：第二對 M5 Ultra 的兩台對單台（11/22）</a></li>
           <li><a href="https://github.com/jundot/omlx/blob/main/docs/experimental/distributed-cluster.md" rel="noopener">oMLX：distributed cluster 文件</a></li>
           <li><a href="https://github.com/jundot/omlx/releases/tag/v0.7.1" rel="noopener">oMLX 0.7.1 release notes</a></li>
           <li><a href="https://github.com/jundot/omlx/releases/tag/v0.7.2" rel="noopener">oMLX 0.7.2 release notes（叢集 TCP ring 實測）</a></li>
@@ -1056,515 +1106,278 @@ ANTHROPIC_BASE_URL=http://127.0.0.1:8000 claude</code></pre>
 </div>
 </div>
 
-<div id="pc" class="tab-panel" role="tabpanel" aria-labelledby="tab-pc" hidden>
+<div id="m1p" class="tab-panel" role="tabpanel" aria-labelledby="tab-m1p" hidden>
 <div class="layout">
-  <nav class="toc" aria-label="自組 PC 目錄">
+  <nav class="toc" aria-label="M1 Pro 32GB 目錄">
     <p class="toc-title">目錄</p>
     <ol>
-      <li><a href="#pc-summary">結論</a></li>
-      <li><a href="#pc-money">錢花在哪裡</a></li>
-      <li><a href="#pc-builds">三套配置</a></li>
-      <li><a href="#pc-models">四個模型</a></li>
-      <li><a href="#pc-other-builds">B、C 能跑到哪裡</a></li>
-      <li><a href="#pc-vs-mac">對照 M5 Ultra</a></li>
-      <li><a href="#pc-todo">下單前要確認</a></li>
-      <li><a href="#pc-risks">風險</a></li>
-      <li><a href="#pc-main-page">Mac 分頁同步更新</a></li>
-      <li><a href="#pc-changelog">更新紀錄</a></li>
-      <li><a href="#pc-sources">來源</a></li>
+      <li><a href="#m1p-summary">結論</a></li>
+      <li><a href="#m1p-hardware">硬體與記憶體</a></li>
+      <li><a href="#m1p-models">門檻與候選</a></li>
+      <li><a href="#m1p-qwen27b">Qwen3.8-27B 適不適合</a></li>
+      <li><a href="#m1p-speed">速度</a></li>
+      <li><a href="#m1p-claude">接 Claude Code</a></li>
+      <li><a href="#m1p-setup">設定步驟</a></li>
+      <li><a href="#m1p-aux">其他用途</a></li>
+      <li><a href="#m1p-todo">風險與待確認</a></li>
+      <li><a href="#m1p-changelog">更新紀錄</a></li>
+      <li><a href="#m1p-sources">來源</a></li>
     </ol>
   </nav>
 
-  <main id="pc-main">
+  <main id="m1p-main">
 
-  <header id="pc-summary" class="hero">
-    <p class="hero-meta">整理於 2026 年 10 月 29 日，11 月 12 日更新，<time datetime="2026-11-19">11 月 19 日</time>更新。這個分頁追蹤非 Mac 路線：在台灣通路自組 Linux 或 Windows 機器，總價不超過 M5 Ultra 512GB／2TB 的 NT$805,400，顯卡最高 RTX 5080。Mac 的規劃見 <a href="#mac">M5 Ultra 512GB 分頁</a></p>
-    <h1>NT$805,400 自組機<br>能跑哪些模型</h1>
+  <header id="m1p-summary" class="hero">
+    <p class="hero-meta">整理於 <time datetime="2026-11-26">2026 年 11 月 26 日</time>。這個分頁評估新的公司筆電：MacBook Pro M1 Pro、32GB 統一記憶體。GPU 是 14 核還是 16 核、macOS 版本都還不確定。起因是朋友在 RTX 5090 上跑 Qwen3.8-27B Q4_K_M，覺得很聰明。M5 Ultra 的規劃見 <a href="#mac">M5 Ultra 512GB 分頁</a></p>
+    <h1>M1 Pro 32GB 公司筆電<br>能跑哪些小模型</h1>
     <p class="lead">
-      預算內最好的組法是 <strong>EPYC 9355＋384GB RDIMM＋兩張 RTX 5080</strong>，逐項加總 NT$800,936，只比 Mac 便宜 0.55%（NT$4,464）。錢幾乎都花在記憶體：伺服器記憶體一年漲了 5 倍多，384GB 就要 NT$45.9–54 萬，512GB 在任何平台都組不進預算。少掉的這 128GB 原本剛好卡住 DeepSeek V4.1 Flash 1017：它用官方精度做混合推論要約 420 GiB。10/30 社群的 KTransformers fork 加了 expert cache，單 socket 256GB 已經實測能跑官方精度，11/01 也有人在單 socket 413 GiB（TR PRO 3975WX）上跑過。A 的 384GB 手動開 expert cache 應該放得下全部 experts，但還沒有人在 384GB 或 EPYC 9005 上測過。在那之前，這台確定能用官方精度跑的主力還是 <strong>GLM-5.3-Flash FP8</strong>。11/19 重查價格，A、C 不變，但原價屋的 5080 只剩兩款，A 用的 INNO3D X3 再下架就沒有預算內的 5080 可換。如果嫌 Mac 貴是唯一的理由，自組省不了錢，同樣的預算買 Mac 比較符合「精度優先」。
+      這台卡在算力，不是記憶體。Qwen3.8-27B 的 4-bit 放得下（約 19 GiB），但它是 dense 模型，同款機器實測 prefill 只有 52–55 tok/s、decode 約 10 tok/s。Claude Code 第一輪約 30K token，要等 9–10 分鐘才出第一個字；朋友的 5090 prefill 約 2,300 tok/s，同樣的 prompt 十幾秒就讀完。所以 27B 在這台只適合 8K 以內、可以等的單次問答。用跟 Mac 分頁同一條 DeepSWE 門檻篩過、又跑得動 Claude Code 的只有 <strong>Inkling 2 Mini</strong>：DeepSWE 48.2，比 27B 的 42.2 高，30K 首字約 2.5–3 分鐘。但 oMLX 0.8.3 在 M1 上跑它每個請求都會失敗，修正 11/25 才進 main，要等下一版。現在就能用、速度最好的是 <strong>Qwen3.6-35B-A3B</strong>（3B active 的 MoE，30K 首字約 70 秒），但長時程的 agent 分數差很多，只拿來做短任務和文件問答。
     </p>
 
     <dl class="decisions">
-      <div><dt>推薦配置</dt><dd>配置 A：EPYC 9355（32 核、8 CCD、12 通道）＋ASUS K14PA-U12＋12×32GB DDR5 RDIMM＋兩張 RTX 5080＋1600W 電源，NT$800,936，離上限只剩 NT$4,464，110V 還用得了</dd></div>
-      <div><dt>主力模型</dt><dd>GLM-5.3-Flash 官方 FP8，用 SGLang＋KTransformers，只能在 Linux 上跑。比起 DeepSeek，DeepSWE 從 77.0 掉到 63.4。05yuki 的 KTransformers fork 在 384GB 上實測可行的話，就換回 DeepSeek 官方精度</dd></div>
-      <div><dt>其他模型</dt><dd>Qwen3.8-Flash-Next Q8_0 可以跑。MiniMax M3.1 Flash 的支援 11/15 進了 llama.cpp 主線（#32301，b12420 起），可以保留官方 NVFP4，但 Unsloth 現有的 GGUF 是照已關閉的 #31192 轉的，主線很可能讀不了，要自己從官方權重轉檔或等重傳。DeepSeek 除了上面的 KTransformers fork，就是 llama.cpp：prompt cache 的錯字 bug 11/14 有一筆全 GPU 的驗證說修好了，混合推論還沒人驗證；Unsloth 的 UD-Q8_K_XL 帶非官方的 MXFP8 Engram，主線會輸出亂碼，b12233 起可以用 <code>--ple</code> 改掛 Q6_K 的 Engram 表</dd></div>
-      <div><dt>速度</dt><dd>全部是推估，還沒有人用這裡建議的量化在 RTX 5080 或 EPYC 9005 上測過這四個模型。GLM 推估 prefill 1,000–2,000、decode 15–20 tok/s。四個模型都是 Mac 比較快，差最少的是 GLM 的 prefill（Mac 1,950–2,090，512GB 社群上傳）</dd></div>
-      <div><dt>買之前</dt><dd>EPYC 和 SP5 主機板只有露天的跨境賣家，沒有原廠保固。原價屋的 RTX 5080 只剩兩款 INNO3D（60,888／64,888），都限搭機；PChome 單賣全缺，有貨最便宜的是 MSI 5080＋X870E 主機板組合 NT$73,990。G.Skill 的 RDIMM 套組標【客訂】。記憶體的標價比國際現貨低，隨時可能調漲</dd></div>
-      <div><dt>會翻盤的條件</dt><dd>RDIMM 降到 512GB 組得進預算；llama.cpp 的 prompt cache bug 確認修好；或 KTransformers 能在 384GB 上跑 DeepSeek。第三件可能已經成立（05yuki 的 expert cache，等 384GB／Turin 的實測）。第二件：11/14 有人在 b12375 上用全 GPU 驗證修好，但 #30944 仍 open，experts 放 RAM 的混合推論還沒人驗證。第一件還沒有時間表</dd></div>
+      <div><dt>Agent 主選</dt><dd>Inkling 2 Mini oQ4e-mtp（<code>mlx-community/Inkling-2-Mini-oQ4e-mtp</code>，16.85 GB），oMLX 0.8.3 之後的版本，32K context。記憶體很緊（權重加 KV 和暫存約 19–21 GiB），跑的時候關掉用不到的 app。它會不確認就刪檔、覆寫，Claude Code 不要開 bypass permissions</dd></div>
+      <div><dt>現在就能用</dt><dd>Qwen3.6-35B-A3B oQ3.5e-mtp（<code>Jundot/Qwen3.6-35B-A3B-oQ3.5e-mtp</code>，18.75 GB），oMLX 0.8.3，Float16 Activations 開、MTP 先關，64K context。同架構的微調 Ornith-1.5-35B-A3B（自報 DeepSWE 22、Terminal-Bench 2.1 68.5）一起 A/B</dd></div>
+      <div><dt>Qwen3.8-27B</dt><dd>MLX 4-bit（<code>mlx-community/Qwen3.8-27B-4bit</code>，16.05 GB）或 oQ4e-mtp（17.52 GB），開 Float16 Activations，只問 8K 以內的單次問題，例如貼一段 diff 請它 review。不接 Claude Code</dd></div>
+      <div><dt>先確認</dt><dd>macOS 版本（13–15 的 GPU 預設上限 21,845 MiB，26／27 是 25,559 MiB）、GPU 核數（14 核的 prefill 約少 13%）、能不能用 sudo，以及公司允不允許裝 oMLX、從 Hugging Face 下載權重</dd></div>
+      <div><dt>M5 Ultra 到貨後</dt><dd>這台只當 Claude Code 的 client，<code>ANTHROPIC_BASE_URL</code> 指到 Mac Studio，本機不跑模型。公司的程式碼送到私人主機之前，先確認公司政策</dd></div>
     </dl>
-    <p class="note">自組機的速度是從最接近的社群實測換算的，例如 RTX 5070 Ti 配 EPYC 7452、RTX 5090 配 EPYC 9654，推法見<a href="#pc-models">四個模型</a>。Mac 的數字一律用 Mac 分頁 <code>assets/data.js</code> 的推估。這些推估跟其他來源的 M5 Ultra 實測有落差，見<a href="#pc-vs-mac">對照 M5 Ultra</a>。價格是 10/29 在原價屋、PChome 和露天看到的標價，11/11 重查過：A 多 NT$14,996、B 多 NT$27,592、C 多 NT$18,080，主因是最便宜的 5080 從 53,990 變成 60,888。11/19 再查：A、C 不變；B 用的 ASRock WRX90 WS EVO 原價屋下架，改用 ASUS WRX90E-SAGE SE，多 NT$6,000。momo 的頁面抓不到，燦坤、順發、蝦皮還沒查。</p>
+    <p class="note">這頁的速度都來自 omlx.ai 上同款機器（M1 Pro 16 核 GPU、32GB）的社群上傳，或從 M1 Max、M2 Max 的數字換算，沒有一筆是這台自己量的。分數都是各家自報，只有少數幾張表用同一套 harness 量了好幾個模型，見<a href="#m1p-models">門檻與候選</a>。研究筆記在 <code>research_notes/2026-11-26 全面更新/m1pro_32gb.md</code>。</p>
   </header>
 
-  <section id="pc-money">
-    <h2>錢花在哪裡</h2>
-    <p class="measure">決定這台能跑什麼的是系統記憶體，不是顯卡。MoE 的 experts 放在 RAM 由 CPU 算，顯卡放 attention、最常用的 experts 和 KV cache。遇到長 prompt，就把 experts 經 PCIe 串流到顯卡做 prefill。所以 RAM 要放得下整個模型，頻寬決定 decode，PCIe 和顯卡數量決定 prefill。</p>
-
-    <h3>伺服器記憶體（DDR5 RDIMM）</h3>
-    <div class="table-wrap">
-      <table class="hybrid">
-        <thead><tr><th scope="col">品項</th><th scope="col">單價（NT$）</th><th scope="col">湊 384GB</th><th scope="col">湊 512GB 以上</th><th scope="col">備註</th></tr></thead>
-        <tbody>
-          <tr class="pick"><th scope="row">G.Skill F5-6000R3036G32GQ4-G5（4×32GB DDR5-6000 ECC REG）</th><td class="num">153,000／組</td><td class="num">3 組 459,000</td><td>—</td><td>原價屋，11/11 標【客訂】（下單後才叫貨）。384GB 最便宜的組法。這是給 Threadripper 用的超頻 RDIMM，在 SP5 伺服器板上可能只跑 JEDEC 速度</td></tr>
-          <tr><th scope="row">G.Skill F5-5600R2834F32GQ4-G5（4×32GB DDR5-5600 ECC REG）</th><td class="num">147,500／組</td><td class="num">3 組 442,500</td><td>—</td><td>原價屋，【客訂】。比上一列省 NT$16,500，理論頻寬少約 7%</td></tr>
-          <tr><th scope="row">Kingston KSM64R52BD8/32MH（32GB DDR5-6400）</th><td class="num">45,000</td><td class="num">12 條 540,000</td><td>—</td><td>原價屋。伺服器板比較穩的選擇，但配置 A 換成這個會超過預算</td></tr>
-          <tr><th scope="row">ADATA 64GB DDR5-5600 RDIMM</th><td class="num">85,999</td><td>—</td><td class="num">8 條 687,992</td><td>PChome，64GB 裡最便宜。11/19 價格沒變，仍缺貨（PChome 的 Samsung 64GB 三款也全缺）</td></tr>
-          <tr><th scope="row">Kingston KSM64R52BD4/64HA（64GB DDR5-6400）</th><td class="num">89,800</td><td>—</td><td class="num">8 條 718,400；12 條 1,077,600</td><td>原價屋。768GB 光記憶體就超過預算</td></tr>
-          <tr><th scope="row">Kingston KSM64R52BD4/96MC（96GB DDR5-6400）</th><td class="num">125,000</td><td>—</td><td>—</td><td>原價屋。沒看到 128GB 或 MRDIMM 的零售品</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <p class="note">DRAMeXchange 的 32GB RDIMM 現貨均價，從 2025 年 11 月約 US$380 漲到 2026-10-19 的 US$2,165，11/02 降到 US$2,025（−6.47%），11/09 再降到 US$1,950（−3.70%），連兩週回落。合約價還在漲：TrendForce 11/11 預估第四季 PC DRAM 合約價季增 13–18%，11/18 的市場快報說合約價續漲但漲幅收斂。台灣零售標價換算下來比國際現貨低，11/19 重查仍沒動。G.Skill 套組已經標【客訂】，其他品項下單時也可能被告知缺貨或調價 <span class="conf" data-c="e">推估</span>。</p>
-
+  <section id="m1p-hardware">
+    <h2>硬體與記憶體</h2>
     <div class="cols">
       <div>
-        <h3>512GB 組不進來</h3>
-        <p>最便宜的 512GB 是 8 條 ADATA 64GB，加上 EPYC 9355 和 SP5 主機板，就是 NT$851,982，還沒算顯卡，而且 ADATA 和 PChome 的 Samsung 64GB 11/19 都缺貨；改用有標價的 Kingston 64GB 是 NT$882,390。CPU 換成最便宜的 16 核 EPYC 9135（露天 NT$45,000）也要 NT$777,982，再加一張 INNO3D 5080 就是 NT$838,870，超過上限。實際能買到的上限是 12 通道 384GB，或 8 通道 256GB。</p>
-        <p>DeepSeek 1017 原本卡在這裡。howl9003 的 KTransformers fork 直接跑官方 MXFP4 experts，實際用掉約 420 GiB。05yuki 的 fork 10/30 加了 expert cache，README 的需求改成「a 512 GB class machine, or one socket with 256 GB」，384GB 跑不了的只剩雙 socket 的配法 <span class="conf" data-c="r">社群回報</span>，見<a href="#pc-models">四個模型</a>。</p>
-      </div>
-      <div>
-        <h3>顯卡：有標價，但不好買</h3>
+        <h3>這台機器</h3>
         <ul class="plain">
-          <li><strong>RTX 5080 16GB：</strong>原價屋 NT$60,888–64,888，比 NVIDIA 台灣建議售價 NT$35,990 高約 69%。原價屋從 11/11 的 11 款剩 2 款，都是 INNO3D、都限搭機：X3（60,888，唯一標雙槽）和 iChill X3 V2（64,888），各標「任搭 1000」。PChome 單賣全缺（MSI VENTUS 漲到 61,990），11/11 有貨的技嘉 5080＋X870 組合也缺貨，有貨最便宜的是 MSI VENTUS＋MAG X870E TOMAHAWK 組合 NT$73,990。欣亞 MSI COD 65,990（補貨中）、ZOTAC 20th 66,990（組裝價）。ETtoday 11/02 報導，5080 跟 10/5 比平均漲 14%，多數店家要搭機、不單賣。</li>
-          <li><strong>RTX 5080 SUPER 24GB：</strong>DigitalToday 11/13 轉述 TechRadar：NVIDIA 已通知板卡廠不再推進 5080 Super，原因是 3GB GDDR7 太貴，NVIDIA 沒有正式說法。這次不列入。</li>
-          <li><strong>RTX 5090：</strong>原價屋連分類都沒有，只出現在整機裡。ETtoday 11/02 報導，最低價從 NT$171,215 變成 NT$220,340 起；PChome 11/19 多了幾個「組合包」賣場，最便宜的是技嘉 AORUS 5090 STEALTH ICE 組合包 NT$309,111（內容沒寫清楚），一張就超過兩張 5080 的 2.5 倍。NVIDIA 否認停產，但產能確實吃緊。</li>
-          <li><strong>RTX 5070 Ti 16GB：</strong>ZOTAC 天啟 OC 11/11 從 NT$46,490 漲到 52,990，仍是唯一不用搭機的單張 16GB 卡（原價屋其他 5070 Ti 都限搭機，NT$45,990–53,990）。它跟 5080 是同一顆 GB203、一樣 16GB，5080 只多 20% CUDA 核心和 7% 頻寬。DeepSeek 的社群混合推論實測用的就是 5070 Ti。</li>
+          <li>晶片：M1 Pro，GPU 14 核或 16 核（14 吋的基本款是 14 核，16 核是選配，看「關於這台 Mac」）。FP32 算力約 4.6／5.3 TFLOPS <span class="conf" data-c="e">推估</span>。</li>
+          <li>記憶體：32GB，頻寬 200 GB/s，是 M5 Ultra 的六分之一。</li>
+          <li>沒有 Neural Accelerator。oMLX 的 M5 專用 kernel、A8 prefill 都用不到；oMLX 的 ANE prefill 會另外 wire 記憶體（27B 8-bit 要多保留 7 GiB），在 32GB 上不可行。</li>
+          <li>M1 沒有原生 bf16。MLX 遇到 bf16 的 checkpoint 會用模擬的方式算，prefill 慢很多。oMLX 的 Float16 Activations（只對 M1、M2 開放）載入時把 bf16 參數轉成 fp16：同一台 M1 Pro 跑 Qwen3.6-27B，prefill 從 42 變成 70–74 tok/s <span class="conf" data-c="r">社群回報</span>。少數模型在 fp16 會溢位出 NaN（Flint #4784 還開著；Inkling 的已在 0.8.3 修好）。</li>
+          <li>M1 的 threadgroup 上限是 448，新模型常撞到：Qwen3.8 的 MTP verify（#4913，已修）、Inkling 2 Mini（#5570，0.8.3 每個請求都失敗，11/25 修正進 main）。</li>
         </ul>
       </div>
-    </div>
-  </section>
-
-  <section id="pc-builds">
-    <h2>三套配置</h2>
-    <p class="measure">價格都是 10/29 台灣通路頁面上的含稅標價，原價屋價格表的時間是當天傍晚；10/31、11/11、11/19 逐項重查過（11/19 原價屋價格表的時間是 16:58），有變的地方已經改掉。信心標記：<span class="conf" data-c="c">已確認</span> 是原價屋或 PChome 頁面上的標價，<span class="conf" data-c="r">跨境賣家</span> 是露天跨境賣家的標價（賣出數 0、價差大、沒有原廠保固），<span class="conf" data-c="e">推估</span> 是台灣通路找不到、自己預留的金額。</p>
-
-    <h3>配置 A（推薦）：EPYC 9355＋384GB＋2× RTX 5080，NT$800,936</h3>
-    <div class="table-wrap">
-      <table class="hybrid">
-        <thead><tr><th scope="col">零件</th><th scope="col">型號</th><th scope="col">NT$</th><th scope="col">價格信心</th><th scope="col">備註</th></tr></thead>
-        <tbody>
-          <tr><th scope="row">CPU</th><td>AMD EPYC 9355（32 核、8 CCD、280W、12 通道 DDR5-6400）</td><td class="num">119,000</td><td><span class="conf" data-c="r">跨境賣家</span></td><td>露天，賣家自稱「全新保一年」，不是原廠保固。AMD 1ku 價換算約 NT$119,745</td></tr>
-          <tr><th scope="row">主機板</th><td>ASUS K14PA-U12（SP5，12 DIMM、每通道 1 條）</td><td class="num">44,990</td><td><span class="conf" data-c="r">跨境賣家</span></td><td>露天，另一筆 NT$49,350。DDR5-6400 支援、PCIe 槽數和間距還沒核對</td></tr>
-          <tr><th scope="row">記憶體</th><td>G.Skill 4×32GB DDR5-6000 ECC REG ×3 組，共 384GB</td><td class="num">459,000</td><td><span class="conf" data-c="c">已確認</span></td><td>原價屋，11/11 標【客訂】。在 SP5 板上能不能開機、跑多快要先確認</td></tr>
-          <tr><th scope="row">顯卡</th><td>INNO3D RTX5080 X3 16GB ×2（雙槽、30 cm）</td><td class="num">121,776</td><td><span class="conf" data-c="c">已確認</span></td><td>原價屋只剩這款和 iChill X3 V2（64,888），都限搭機；標「任搭 1000」，跟主機一起買可能各折 NT$1,000，總價沒算進去。PChome 單賣全部缺貨</td></tr>
-          <tr><th scope="row">電源</th><td>Seasonic PRIME TX-1600</td><td class="num">19,690</td><td><span class="conf" data-c="c">已確認</span></td><td>11/11 漲 NT$1,200。PChome 有貨，原價屋同價</td></tr>
-          <tr><th scope="row">機殼</th><td>Phanteks Enthoo Pro2 伺服器版</td><td class="num">5,090</td><td><span class="conf" data-c="c">已確認</span></td><td>支援 EEB，顯卡長度上限 50 cm</td></tr>
-          <tr><th scope="row">CPU 散熱器</th><td>SP5 專用（SilverStone XE360-SP5、Arctic Freezer 4U-SP5 這一級）</td><td class="num">8,000</td><td><span class="conf" data-c="e">推估</span></td><td>原價屋、PChome 都沒有。原價屋的 TR5-SP6 散熱器裝不上 SP5</td></tr>
-          <tr><th scope="row">SSD</th><td>Crucial T705 4TB（PCIe 5.0）</td><td class="num">21,300</td><td><span class="conf" data-c="c">已確認</span></td><td>四個模型的權重加起來約 1.5TB</td></tr>
-          <tr><th scope="row">延長線</th><td>Cooler Master PCIe 5.0 x16 300 mm</td><td class="num">2,090</td><td><span class="conf" data-c="c">已確認</span></td><td>以防伺服器板的槽距放不下兩張卡。INNO3D X3 是雙槽，比原本的 2.5 slot 卡好放，可能用不到 <span class="conf" data-c="e">推估</span></td></tr>
-          <tr class="pick"><th scope="row">合計</th><td>384 GiB RAM＋32GB VRAM</td><td class="num"><strong>800,936</strong></td><td>—</td><td>距上限 NT$4,464（0.55%）</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <p class="note">12 通道 DDR5-6400 的理論頻寬是 614.4 GB/s，跑 DDR5-6000 是 576 GB/s。Chips and Cheese 量到 9355P 在 NPS1 下的線性讀取約 479 GB/s。9355 是能吃滿 12 通道最便宜的型號：CPU 讀記憶體要經過 CCD，CCD 太少的低階型號頻寬會被卡住。</p>
-
-    <div class="table-wrap">
-      <table class="hybrid">
-        <thead><tr><th scope="col">A 的變形</th><th scope="col">總價（NT$）</th><th scope="col">說明</th></tr></thead>
-        <tbody>
-          <tr><th scope="row">記憶體換 G.Skill DDR5-5600 套組</th><td class="num">784,436</td><td>多留 NT$16,500，餘裕回到 NT$20,964，理論頻寬 537.6 GB/s。A 超出上限時最省事的保險</td></tr>
-          <tr><th scope="row">CPU 換 EPYC 9365（36 核、6 CCD）</th><td class="num">773,236</td><td>露天 NT$91,300。CCD 少兩個，頻寬可能比 9355 吃緊</td></tr>
-          <tr><th scope="row">顯卡換兩張 ZOTAC 5070 Ti 天啟 OC</th><td class="num">785,140</td><td>天啟仍是 NT$52,990、不用搭機。原價屋 5080 只剩兩款，這是 INNO3D X3 買不到時唯一還在預算內的備案</td></tr>
-          <tr><th scope="row">顯卡換兩張 INNO3D iChill X3 V2</th><td class="num">808,936</td><td><span class="verdict" data-v="no">超出 3,536</span>。技嘉 WINDFORCE 11/19 原價屋下架，原價屋另一款 5080 是 64,888</td></tr>
-          <tr><th scope="row">顯卡換兩組 PChome 的 MSI 5080＋X870E TOMAHAWK 組合</th><td class="num">827,140</td><td><span class="verdict" data-v="no">超出 21,740</span>。NT$73,990／組，不用搭機、有貨（技嘉的 69,590 組合 11/19 缺貨），但多出來的主機板用不到</td></tr>
-          <tr><th scope="row">記憶體換 Kingston DDR5-6400</th><td class="num">881,936</td><td><span class="verdict" data-v="no">超出 76,536</span></td></tr>
-          <tr><th scope="row">主機板換 PChome 的 Supermicro H13SSL-N</th><td class="num">858,346</td><td><span class="verdict" data-v="no">超出 52,946</span>。正規通路，但標價從約 NT$5.1 萬漲到 NT$102,400</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <p class="note">主機板要避開 24 DIMM 的 Gigabyte MZ33-AR1。它是每通道 2 條的設計，就算每通道只插一條，記憶體也會被限在 DDR5-5200。ASRock Rack GENOAD8X 只有 8 個插槽，用不滿 12 通道。</p>
-
-    <h3>配置 B：Threadripper PRO 9975WX＋256GB＋4× RTX 5080，NT$795,092（要 220V）</h3>
-    <div class="table-wrap">
-      <table class="hybrid">
-        <thead><tr><th scope="col">零件</th><th scope="col">型號</th><th scope="col">NT$</th><th scope="col">價格信心</th><th scope="col">備註</th></tr></thead>
-        <tbody>
-          <tr><th scope="row">CPU</th><td>AMD Threadripper PRO 9975WX（32 核，推算 4 CCD）</td><td class="num">143,250</td><td><span class="conf" data-c="c">已確認</span></td><td>原價屋</td></tr>
-          <tr><th scope="row">主機板</th><td>ASUS Pro WS WRX90E-SAGE SE（EEB，8 DIMM）</td><td class="num">44,990</td><td><span class="conf" data-c="c">已確認</span></td><td>原價屋。原本的 ASRock WRX90 WS EVO（38,990）11/19 原價屋下架；PCIe 槽數和間距還沒核對</td></tr>
-          <tr><th scope="row">記憶體</th><td>G.Skill 4×32GB DDR5-6000 ECC REG ×2 組，共 256GB</td><td class="num">306,000</td><td><span class="conf" data-c="c">已確認</span></td><td>原價屋，11/11 標【客訂】</td></tr>
-          <tr><th scope="row">顯卡</th><td>INNO3D RTX5080 X3 16GB ×4（雙槽）</td><td class="num">243,552</td><td><span class="conf" data-c="c">已確認</span></td><td>限搭機。原價屋 5080 只剩兩款，四張同款更難買；兩張換 iChill X3 V2 的話合計 803,092</td></tr>
-          <tr><th scope="row">電源</th><td>ASUS Pro WS 2200W</td><td class="num">19,990</td><td><span class="conf" data-c="c">已確認</span></td><td>原價屋標「限 220V」</td></tr>
-          <tr><th scope="row">機殼</th><td>Phanteks Enthoo Pro2 伺服器版</td><td class="num">5,090</td><td><span class="conf" data-c="c">已確認</span></td><td>4 張卡放不放得下要實際量</td></tr>
-          <tr><th scope="row">CPU 散熱器</th><td>Noctua NH-U14S TR5-SP6</td><td class="num">4,250</td><td><span class="conf" data-c="c">已確認</span></td><td>PChome 有貨</td></tr>
-          <tr><th scope="row">SSD</th><td>Crucial T705 4TB</td><td class="num">21,300</td><td><span class="conf" data-c="c">已確認</span></td><td></td></tr>
-          <tr><th scope="row">延長線、支架</th><td>PCIe 5.0 x16 延長線 ×2＋Phanteks 直立套件</td><td class="num">6,670</td><td><span class="conf" data-c="c">已確認</span></td><td>有兩張卡要外掛</td></tr>
-          <tr class="pick"><th scope="row">合計</th><td>256 GiB RAM＋64GB VRAM</td><td class="num"><strong>795,092</strong></td><td>—</td><td>距上限 NT$10,308</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <p class="note">B 的每個零件都能在原價屋或 PChome 買到，最容易滿足限搭機，也都有正常保固。代價是 8 通道只插得起 256GB：GLM 的官方 FP8（KTransformers 要求至少 350GB 可用 RAM）和 DeepSeek 的原生路線都跑不了。9975WX 只有 4 個 CCD，實際讀取頻寬可能只有理論值 409.6 GB/s 的一半左右（推論，沒有找到 TR PRO 9000 的實測）。變形：只插 2 張卡、改用 TX-1600、拿掉延長線和支架是 NT$666,346，110V 可用；CPU 再換成 8 CCD 的 9985WX（原價屋 NT$276,850）是 NT$799,946，餘裕 NT$5,454，頻寬吃滿但還是只有 256GB。</p>
-
-    <h3>配置 C（對照組）：AM5 Ryzen 9 9950X＋256GB＋2× RTX 5080，NT$373,868</h3>
-    <div class="table-wrap">
-      <table class="hybrid">
-        <thead><tr><th scope="col">零件</th><th scope="col">型號</th><th scope="col">NT$</th><th scope="col">價格信心</th><th scope="col">備註</th></tr></thead>
-        <tbody>
-          <tr><th scope="row">CPU</th><td>AMD Ryzen 9 9950X</td><td class="num">20,350</td><td><span class="conf" data-c="c">已確認</span></td><td>原價屋</td></tr>
-          <tr><th scope="row">主機板</th><td>ASUS ProArt X870E-CREATOR WIFI</td><td class="num">17,990</td><td><span class="conf" data-c="c">已確認</span></td><td>兩張卡會分成 x8／x8</td></tr>
-          <tr><th scope="row">記憶體</th><td>Team T-CREATE EXPERT DDR5-6400 2×64GB ×2 組，共 256GB</td><td class="num">170,798</td><td><span class="conf" data-c="c">已確認</span></td><td>PChome，11/11 每組再漲 NT$2,400（雙 11 折價券的價格不算）。要在原價屋搭機的話，改買 G.Skill Flare X5 兩組，總價 NT$392,070。原價屋也有 G.Skill Flare X5 4×64GB 單一套組（189,000），跟兩組 2×64GB 同價，4 條同批比較好過</td></tr>
-          <tr><th scope="row">顯卡</th><td>INNO3D RTX5080 X3 16GB ×2</td><td class="num">121,776</td><td><span class="conf" data-c="c">已確認</span></td><td>限搭機</td></tr>
-          <tr><th scope="row">電源</th><td>Corsair HX1500i</td><td class="num">11,474</td><td><span class="conf" data-c="c">已確認</span></td><td>PChome。原本的賣場 11/11 暫停，改用另一個有貨的賣場</td></tr>
-          <tr><th scope="row">機殼</th><td>Phanteks Enthoo Pro2 V2 伺服器版</td><td class="num">5,090</td><td><span class="conf" data-c="c">已確認</span></td><td>原本的 Enthoo Pro2（4,100）10/31 下架</td></tr>
-          <tr><th scope="row">延長線</th><td>Cooler Master PCIe 5.0 x16 300 mm</td><td class="num">2,090</td><td><span class="conf" data-c="c">已確認</span></td><td></td></tr>
-          <tr><th scope="row">CPU 散熱器</th><td>AM5 塔扇或 360 水冷</td><td class="num">3,000</td><td><span class="conf" data-c="e">推估</span></td><td>這次沒查價</td></tr>
-          <tr><th scope="row">SSD</th><td>Crucial T705 4TB</td><td class="num">21,300</td><td><span class="conf" data-c="c">已確認</span></td><td></td></tr>
-          <tr class="pick"><th scope="row">合計</th><td>256 GiB RAM＋32GB VRAM</td><td class="num"><strong>373,868</strong></td><td>—</td><td></td></tr>
-        </tbody>
-      </table>
-    </div>
-    <p class="note">C 是用來看頻寬上限的對照組。AMD 官方規格裡，9950X 插 4 條雙面記憶體只保證 DDR5-3600（57.6 GB/s）。社群回報 4×64GB 可以穩在 5200–5600，但有些 BIOS 版本插 4 條會開不了機。雙通道實測讀取上限約 63 GB/s，大約是配置 A 的五分之一。</p>
-
-    <div class="cols">
       <div>
-        <h3>Intel Xeon 600 為什麼不列</h3>
-        <p>台灣買得到的只有入門的 Xeon 654（18 核）。PChome 單顆 NT$78,999，大約是 Intel 建議價 US$1,199 的兩倍，配 ASUS W890 的組合價 NT$106,999。8 通道插 8×32GB 也只有 256GB，容量上限跟 B 一樣；換 8×64GB 的話，平台加記憶體就要 NT$81.7 萬。支援 MRDIMM 的 674X 以上只有露天的占位標價，LGA4710 散熱器在台灣也找不到。</p>
-        <p>AMX 在這個工作負載用處不大。精度優先的路線用 FP8 和 MXFP4 的 AVX-512 kernel，不走 AMX 的 INT4／INT8；prompt 超過 2,048–4,096 token 時，KTransformers 也會把 prefill 移到 GPU。</p>
-      </div>
-      <div>
-        <h3>限搭機和 110V</h3>
+        <h3>記憶體怎麼分</h3>
+        <p>GPU 能用多少記憶體（Metal 的 <code>recommendedMaxWorkingSetSize</code>）跟 macOS 版本有關 <span class="conf" data-c="r">社群回報</span>：</p>
         <ul class="plain">
-          <li><strong>A 受限搭機影響最大。</strong>原價屋不賣 EPYC 和 SP5 主機板。只在原價屋買記憶體（NT$45.9 萬）、電源、機殼、SSD 算不算搭機，能不能一次買兩張同款的 INNO3D X3，都要先問。問不到就改用 5070 Ti 天啟（總價 NT$785,140）。PChome 的技嘉 5080＋X870 組合 11/19 缺貨；有貨的 MSI 5080＋X870E TOMAHAWK 兩組 NT$147,980，A 會超出上限 NT$21,740。原價屋的 5080 從 11 款剩 2 款，要先確認 INNO3D X3 還有沒有貨。</li>
-          <li><strong>A 在 110V 偏緊。</strong>CPU 280W 加兩張 5080 720W，prefill 尖峰的牆端功耗推估約 1.2–1.3 kW。110V／15A 峰值 1,650W，持續負載以 80% 計約 1,320W，已經貼近上限。建議用 <code>nvidia-smi -pl 300</code> 限制顯卡功耗，並接專用迴路 <span class="conf" data-c="e">推估</span>。</li>
-          <li><strong>B 一定要 220V。</strong>4 張 5080 光顯卡就 1,440W，2,200W 以上的電源原價屋都標「限 220V」。不然就用兩顆電源分接兩個 110V 迴路。</li>
-          <li><strong>C 沒問題。</strong>整台約 1 kW，全部在原價屋組也行。</li>
+          <li>macOS 13–15：21,845 MiB（剛好 2/3）。</li>
+          <li>macOS 26／27：約 25,559 MiB（約 78%）。</li>
         </ul>
+        <p>要調高用 <code>sudo sysctl iogpu.wired_limit_mb=&lt;MiB&gt;</code>，重開機就還原，永久生效要寫成 LaunchDaemon。公司 MDM 管的筆電可能沒有管理員權限，要先問 IT。</p>
+        <p>這台還要開 IDE、瀏覽器和通訊軟體，抓 10–12 GB 給 macOS 和這些 app，所以<strong>模型、KV 和暫存合計要壓在 20–22 GB</strong> <span class="conf" data-c="e">推估</span>。有人在 M4 32GB 上只留 6 GB 就失敗，建議留 9 GB；另一份回報是 Docker 佔掉 24 GB 時載入 18 GB 的模型，M1 Pro 32GB 直接 kernel panic，因為 llama.cpp 只看 Metal 的上限、不看實際剩多少 <span class="conf" data-c="r">社群回報</span>。跑的時候開著「活動監視器」看記憶體壓力，不要讓它進 swap。</p>
       </div>
-    </div>
-
-    <div class="callout">
-      <p><strong>要自組的話選 A，但先接受兩件事。</strong>三套裡只有 A 的 RAM 放得下 GLM-5.3-Flash 的官方 FP8，頻寬也最高。兩張 PCIe 5.0 x16 的卡能讓長 prompt 走 GPU 串流 prefill，只插兩張還能留在 110V。第一件事：Claude Code 的主力要從 DeepSeek 換成 GLM。第二件事：要用 Linux，因為 KTransformers 只有 Linux x86-64 的版本。這兩件事不能接受的話，同樣的預算買 Mac 比較好，數字見<a href="#pc-vs-mac">對照 M5 Ultra</a>。B 適合只打算跑 Qwen 或 MiniMax、又想全部在正規通路買的情況；C 只適合當對照組，或只跑 Qwen 的低預算方案。</p>
     </div>
   </section>
 
-  <section id="pc-models">
-    <h2>四個模型</h2>
-    <p class="measure">這一節以配置 A（384 GiB RAM＋兩張 5080）為準。到 11/19 為止，沒有人公開測過 RTX 5080 用下表的量化跑這四個模型，所以下表的速度都是推估。唯一的 EPYC 9355 數字是 ik_llama.cpp 配一張 48GB RTX PRO 5000 跑 DeepSeek 1017 的 MXFP4 experts，見 DeepSeek 一節。RTX 5080 現在有 Strata 跑 Qwen UD-Q4_K_XL（decode 55–63）和 DeepSeek 2-bit 級（decode 8–10）的數字，量化都跟下表不同。推法有兩條。Decode 約等於「每個 token 要從 RAM 讀的 expert bytes ÷ 有效頻寬」，Turin 的有效頻寬抓 280–330 GB/s，約理論值的 45–55%：EPYC 9654 跑 MiniMax 時 CPU 端實測約 238 GB/s，EPYC 9355 跑 Kimi-K2.5 約 47%。長 prompt 的 prefill 靠 GPU 經 PCIe 串流 expert 權重，PCIe 5.0 x16 實測約 45 GB/s，PCIe 4.0 x16 是 23–26 GB/s。</p>
+  <section id="m1p-models">
+    <h2>門檻與候選</h2>
+    <p class="measure">規則跟 Mac 分頁的 <a href="#gate">benchmark 門檻</a>一樣，換成這台放得下的模型，再加一條速度：</p>
+    <ol class="principles">
+      <li><strong>DeepSWE v1.1 自報 ≥ 41。</strong>這台放得下的模型裡最高的是 Inkling 2 Mini 的 48.2，一樣減 7。這個尺寸有 DeepSWE 分數的很少，沒有的不能過這關。</li>
+      <li><strong>同一張第三方表上不能落後最高分 7 分以上。</strong>這個尺寸沒有 Vals 或 tbench.ai 的數字可以比（Vals 只有 Inkling 2 Mini：Terminal-Bench 4.0 6.6），所以用 KRAFTON 在 Raon-1-mini 卡上用 mini-SWE-agent 跑的 SWE-bench Verified：Flint 76.0、Qwen3.8-27B 74.6、Inkling 2 Mini 74.2、Qwen3.6-35B-A3B 63.2、Gemma 4 26B 61.6。</li>
+      <li><strong>Claude Code 第一輪（約 30K token）5 分鐘內出第一個字。</strong>超過這個時間，每次 cache 沒命中都要等太久，也容易撞到串流逾時。</li>
+    </ol>
     <div class="table-wrap">
       <table class="hybrid">
-        <thead><tr><th scope="col">模型</th><th scope="col">量化與精度</th><th scope="col">Runtime／系統</th><th scope="col">佔用與 context</th><th scope="col">Prefill／decode（tok/s）</th><th scope="col">判斷</th></tr></thead>
+        <thead><tr><th scope="col">模型與量化</th><th scope="col">大小與記憶體</th><th scope="col">分數（harness）</th><th scope="col">這台的速度（tok/s）</th><th scope="col">判斷</th></tr></thead>
         <tbody>
-          <tr class="pick"><th scope="row">GLM-5.3-Flash</th><td><strong>官方 FP8</strong>，KTransformers 直接讀、不轉檔</td><td>SGLang＋KTransformers v0.7.2（<code>--kt-method FP8</code>），只能 Linux</td><td>模型約 306 GiB。官方要求至少留 350GB 可用 RAM，384 GiB 剛好過門檻。官方驗證到 501,025 token，KV 每 token 13,045 B，1M 約 12.7 GiB，兩張卡分攤</td><td class="num">1,000–2,000／15–20 <span class="conf" data-c="e">推估</span></td><td><span class="verdict" data-v="rec">主力</span><br>唯一用官方精度、又有官方文件背書的。decode 慢，文件沒提 MTP</td></tr>
-          <tr><th scope="row">Qwen3.8-Flash-Next</th><td>Q8_0（188.2GB），近無損。n-gram 層放 SSD</td><td>llama.cpp 主線（10/30 之後的 build）或 ik_llama.cpp，Linux、Windows 都行。MTP 要用 Unsloth 的分支。Strata 0.2.13 也能跑。KTransformers 不支援</td><td>RAM 約 175 GiB，部分 expert 層放 VRAM。原生 262K，KV 約 7.3 GiB</td><td class="num">700–1,500／40–60（不開 MTP）<span class="conf" data-c="e">推估</span></td><td><span class="verdict" data-v="alt">可以跑</span><br>llama.cpp 對這類遞迴模型的 checkpoint 有好幾個 issue，prompt cache 命中率要實測</td></tr>
-          <tr><th scope="row">MiniMax M3.1 Flash</th><td>Unsloth UD-Q8_K_XL（259.1GB），routed experts 維持官方 NVFP4</td><td>llama.cpp 主線 b12420 起（#32301，11/15 合併；驗證是 8× H200 全 GPU）。Unsloth 的檔缺新的 <code>indexer_types</code> metadata，主線很可能載入失敗，要自己從官方權重轉檔，建議 Linux</td><td>約 241 GiB。KV 每 token 138,240 B，VRAM 內大概只放得下 64K–128K，更長要用 <code>-nkvo</code> 放 RAM，速度大降</td><td class="num">250–350／17–22 <span class="conf" data-c="e">推估</span></td><td><span class="verdict" data-v="watch">要實測</span><br>主線已支援，但 GGUF 要重轉，CUDA 混合推論的正確性和速度沒人測過</td></tr>
-          <tr><th scope="row">DeepSeek V4.1 Flash 1017<br>（KTransformers）</th><td><strong>官方 MXFP4 experts</strong>，直接讀官方 checkpoint，Engram 從 SSD 讀</td><td>05yuki 的 SGLang＋KTransformers fork（10/30 加 expert cache，11/01 起預設開 prefix cache），只能 Linux，預設一次只服務一個請求</td><td>384 GiB 單 socket，Linux 看到約 375–380 GiB，高於自動開 expert cache 的門檻。但作者寫 server 約用 420 GiB，prefix cache 每張卡還要約 5–6 GiB RAM，自動規則的「全部載入」不一定放得下。建議手動設 <code>KT_MXFP4_EXPERT_CACHE_GIB</code>（例如 300），讓 experts 用 269 GiB 的精簡格式全部常駐 <span class="conf" data-c="e">推估</span></td><td class="num">沒有實測；應介於單 socket 256GB 的 697–863／15–20 和雙 socket 512GB 的 1,600–1,872／37–54 之間。單 socket TR PRO 3975WX（DDR4、413 GiB、一張 5060 Ti）實測 35K 538–595／20.1 <span class="conf" data-c="r">社群回報</span></td><td><span class="verdict" data-v="watch">要實測</span><br>如果 384GB 跑得起來，A 就能用官方精度跑 DeepSeek。11/01 起預設開 prefix cache（HiCache），合成測試 35K 重送 1.9–2.0 秒，還沒有 Claude Code 的 trace。11/15 修好 pool 填滿後 hot expert 不回來的問題，pool 滿了之後 decode 從 30 回到 70 tok/s，要用 11/15 之後的 main 或下一個 tag</td></tr>
-          <tr><th scope="row">DeepSeek V4.1 Flash 1017<br>（llama.cpp）</th><td>Unsloth UD-Q8_K_XL：experts 維持原生 MXFP4，其餘 BF16（KL 0.0048）。發布的檔帶非官方的 MXFP8 Engram，10/29 之後的主線讀錯，Engram 要換：b12233 起用 <code>--ple</code> 掛 Unsloth 另外提供的 Q6_K 表（161.3 GB），不用改檔</td><td>llama.cpp 主線 v1.0.0（11/13）以後，Linux 或 Windows</td><td>主體 306GB 分在 RAM 和兩張卡，Engram 留在 SSD（<code>-ot</code> 指定給 CPU）。原生 1M，KV 約 3.1 GiB</td><td class="num">400–550（<code>-ub 4096</code> 以上）／30–45 <span class="conf" data-c="e">推估</span></td><td><span class="verdict" data-v="no">要妥協</span><br>#30944 仍 open。11/14 有人在 b12375 上用一張 RTX PRO 6000 全 GPU、多 slot、強制從 <code>--cache-ram</code> 還原，34/34 正確；experts 放 RAM 的混合推論和 Unsloth 檔還沒人驗證。先用 <code>--cache-ram 0</code>，到手後用自己的 trace 驗證再打開。<code>-ub 512</code> 的長 prompt 只有約 50 tok/s</td></tr>
+          <tr class="pick"><th scope="row">Inkling 2 Mini<br>oQ4e-mtp（Thinking Machines，Apache-2.0）</th><td>16.85 GB。26.4B／3.4B active 的 looped MoE，第 6–17 層跑 3 遍。只有每 6 層 1 層是 global attention，KV 每 token 32 KiB，32K 約 1 GiB，另有固定約 168 MB 的 sliding window。32K 時合計約 19–21 GiB <span class="conf" data-c="e">推估</span>，有人在 32GB 機器上用 oQ3e 跑到約 20.8 GB、開始 swap <span class="conf" data-c="r">社群回報</span></td><td>DeepSWE 48.2（mini-swe-agent）、Terminal-Bench 2.1 71.6（pi）、LongBench v2 66.9（官方）；KRAFTON 的 SWE-bench Verified 74.2、AA-LCR 80.7。第三方 Vals Terminal-Bench 4.0 只有 6.6</td><td>同款機器 32K：prefill 172–214、decode 13–17；30K 首字約 2.5–3 分鐘 <span class="conf" data-c="r">社群回報</span></td><td><span class="verdict" data-v="rec">Agent 主選，等 oMLX 下一版</span><div class="note">三關都過。0.8.3 在 M1 上每個請求都失敗（#5570）；回答很冗長，13–17 tok/s 下每輪的 thinking 就要好幾分鐘</div></td></tr>
+          <tr><th scope="row">Qwen3.6-35B-A3B<br>oQ3.5e-mtp（Apache-2.0）</th><td>18.75 GB。35B／3B active，40 層裡 10 層 full attention，KV 每 token 20 KiB，64K 約 1.25 GiB。64K 合計約 21 GiB <span class="conf" data-c="e">推估</span></td><td>官方 SWE-bench Verified 73.4；NVIDIA 同 harness 70.1、Terminal-Bench 2.1 44.4；KRAFTON 63.2；Ornith 卡（Claude Code harness）DeepSWE 0、Terminal-Bench 2.1 49.2</td><td>同款機器：4K 515、16K 446–471，decode 31–55 <span class="conf" data-c="r">社群回報</span>；32K 380–420、64K 約 300 <span class="conf" data-c="e">推估</span>；30K 首字約 70 秒</td><td><span class="verdict" data-v="alt">現在就能用的快選</span><div class="note">只過第 3 關。短任務、文件問答、改一兩個檔案</div></td></tr>
+          <tr><th scope="row">Ornith-1.5-35B-A3B<br>oQ3e-mtp（Qwen3.6 的微調，MIT）</th><td>16.57 GB（<code>mlx-works/Ornith-1.5-35B-A3B-oQ3e-mtp</code>），架構跟 Qwen3.6-35B-A3B 相同</td><td>自報 DeepSWE 22、Terminal-Bench 2.1 68.5（Claude Code 2.1.126）、SWE-bench Verified 79（OpenHands），5 次平均；同一張表的 Qwen3.6-35B-A3B 是 0、49.2、73.4</td><td>沒有 M1 的數字，架構相同，推估跟 Qwen3.6 一樣 <span class="conf" data-c="e">推估</span></td><td><span class="verdict" data-v="watch">跟 Qwen3.6 A/B</span><div class="note">分數都是微調團隊自報。要換修過的 Qwen 模板；原版 MTP head 表現差</div></td></tr>
+          <tr><th scope="row">Qwen3.8-27B<br>MLX 4-bit／Q4_K_M（Apache-2.0）</th><td>MLX 4-bit 16.05 GB、Q4_K_M 16.81 GB。dense，KV 每 token 64 KiB，32K 的 q8_0 KV 約 1.06 GiB。合計約 19 GiB <span class="conf" data-c="e">推估</span></td><td>DeepSWE 42.2（Claude Code harness）、Terminal-Bench 2.1 73.0、SWE-bench Pro 61.7（官方）；KRAFTON 的 SWE-bench Verified 74.6</td><td>同款機器 MLX 4-bit：prefill 52–55、decode 10.2–10.7 <span class="conf" data-c="r">社群回報</span>；30K 首字 9–10 分鐘</td><td><span class="verdict" data-v="no">不接 Claude Code</span><div class="note">分數過關，卡在速度。見<a href="#m1p-qwen27b">下一節</a></div></td></tr>
+          <tr><th scope="row">Flint 40B-A2.5B<br>UD-Q3_K_XL</th><td>18.49 GB，KV 每 token 28 KiB</td><td>KRAFTON 的 SWE-bench Verified 76.0（這張表最高）、自報 Terminal-Bench 2.1 54.9；沒有 DeepSWE</td><td>沒有 M1 的數字。oMLX 的 fp16 會出 NaN（#4784），在 M1 上是問題</td><td><span class="verdict" data-v="watch">待定</span></td></tr>
+          <tr><th scope="row">GPT-OSS-20B<br>MXFP4</th><td>12.11 GB，64K 合計約 14.5 GiB</td><td>NVIDIA 同 harness：SWE-bench Verified 52.4、Terminal-Bench 2.1 15.2</td><td>同款機器 llama.cpp：4K 508、32K 325，decode 30–42 <span class="conf" data-c="r">社群回報</span></td><td><span class="verdict" data-v="no">記憶體很緊時才用</span></td></tr>
+          <tr><th scope="row">其他 3–4B active 的 MoE</th><td>Gemma 4 26B-A4B QAT 14.44 GB；Nemotron 3.5 Lightning 30B-A3B 4-bit 17.78 GB；GLM-4.7-Flash UD-Q4_K_XL 17.52 GB</td><td>NVIDIA 同 harness 的 SWE-bench Verified：Gemma 57.4、Nemotron 51.6，都比 Qwen3.6 低；GLM-4.7-Flash 59.2（harness 沒寫）</td><td>Gemma（14 核）32K 258／24；GLM-4.7-Flash 32K 的 prefill 掉到 103 <span class="conf" data-c="r">社群回報</span></td><td><span class="verdict" data-v="no">比 Qwen3.6 差</span></td></tr>
+          <tr><th scope="row">更小或更新的</th><td>SenseNova-Loop-9B Q4_K_M 5.82 GB；Ternary Bonsai 2.5 27B（Qwen3.8-27B 的 ternary 版）6–7.7 GB；Raon-1-mini（KRAFTON，28.8B／4.3B）</td><td>SenseNova 自報 Terminal-Bench 2.1 59.6、沒有 SWE 分數；Bonsai 自報 DeepSWE 27.0（FP16 是 30.1）；Raon 的 SWE-bench Verified 71.0</td><td>SenseNova 4K prefill 約 100；Bonsai 在 M4 Pro 上 prefill 約 126，一樣是 dense 的慢；Raon 只能用 KRAFTON 自己的 fork</td><td><span class="verdict" data-v="no">不列入</span></td></tr>
         </tbody>
       </table>
     </div>
+    <p class="note">分數都是原始權重的，不是 3-bit、4-bit 的；量化對 agent 分數的影響沒有資料。跨表比較不可靠：Qwen3.6-35B-A3B 的 SWE-bench Verified 在三張表上分別是 73.4、70.1、63.2。Thinking Machines 的表上 Qwen3.8-27B 的 DeepSWE 42.2 跟 Qwen 自報的一模一樣，應該是直接引用。Qwen 沒有出 Qwen3.8 的小 MoE，HF 上只有 27B、Flash-Next（180B）和 2.4T 的版本 <span class="conf" data-c="c">已確認</span>。</p>
+  </section>
 
+  <section id="m1p-qwen27b">
+    <h2>Qwen3.8-27B 適不適合</h2>
     <div class="cols">
       <div>
-        <h3>DeepSeek：差的 36 GiB 可能已經補上</h3>
-        <p>精度最好的混合推論是 SGLang＋KTransformers 直接跑官方 MXFP4 experts。社群在兩張 RTX 5070 Ti 配雙 EPYC 7452（Zen 2、512GB DDR4、PCIe 4.0）上實測，NLL 0.7192，跟 FP8 參考值 0.7185 幾乎一樣；prefill 35K 是 1,758、131K 是 1,873 tok/s，decode 35–46 tok/s；10/30 的重測是 35K／131K／1M 1,736／1,872／1,068 tok/s、decode 37.3–50.0；11/14 的最新 tag 是 decode 中位數 54.4，第一個 35K prompt 20.2 秒（約 1,730 tok/s），同一個 35K 從 cache 重送 1.8 秒 <span class="conf" data-c="r">社群回報</span>。但這條路原本要約 420 GiB RAM。KTransformers 官方也只支援 V4-Flash 0731，1017 要靠社群 fork。</p>
-        <p>10/30 的變化是 05yuki 的 fork 加了 expert cache：CPU 端只有一個 expert pool、而且所在的 NUMA node 小於 370 GiB 時，會拿「node 記憶體減 50 GiB」當 experts 的 RAM cache，沒 cache 到的 expert 再從 checkpoint 讀，開關 cache 的輸出逐 bit 相同。單 socket 實測用一顆 EPYC 7452、251 GiB、一張 RTX 5070 Ti：NLL 0.7209，decode 15.0–20.2 tok/s，35K／131K／1M 的 prefill 是 697／863／625 tok/s <span class="conf" data-c="r">社群回報</span>。11/01 另一位使用者在單 socket 的 TR PRO 3975WX（Zen 2、8 通道 DDR4）VM 上給 420 GiB，Linux 看到 413 GiB，高於門檻，沒開 expert cache；配一張 PCIe 4.0 x8 的 RTX 5060 Ti，全部檢查通過，decode 中位數 20.1 tok/s，35K prefill 538–595 tok/s <span class="conf" data-c="r">社群回報</span>。配置 A 是 12 條 32GB，也就是 384 GiB（記憶體模組是二進位容量），Linux 看到的大約 375–380 GiB，剛好超過 370 GiB 的門檻，serve.sh 不會開 expert cache，會把 experts 全部載入。但作者的需求文件寫 server 約用 420 GiB，11/01 起預設開的 prefix cache 在 host 每張卡還要約 5–6 GiB，目前沒開 cache 跑得起來的最小例子就是上面的 413 GiB，所以 A 不能照自動規則走。比較保險的做法是手動設 <code>KT_MXFP4_EXPERT_CACHE_GIB</code>（例如 300：378 − 50 − 兩張卡約 12 ≈ 316），讓 experts 用 checkpoint 的 269 GiB 精簡格式全部常駐 <span class="conf" data-c="e">推估</span>。沒有人測過 384GB 或 Turin：第一筆 AVX-512 的 CPU 是 11/10 的雙 Xeon、751 GiB，而且 kt-kernel 目前只用 AVX2。作者也註明三張以上的卡沒測過；這是單一作者的 patch stack，釘在固定的 SGLang 和 KTransformers commit。11/14 README 新增一台 AVX-512 的雙 Xeon（kernel 仍跑 AVX2），384GB 和 Turin 仍沒有回報。</p>
-        <p>另一條路是 llama.cpp 主線：#31086 在 10/25 合併，CPU、CUDA、Metal 都支援，也包含 DSpark 和 Engram。但 Unsloth 的 UD-Q8_K_XL 用非官方的 type 43 存 MXFP8 Engram，10/29 主線把 43 號給了 FP8 之後就輸出亂碼（#31385，到 11/19 仍 open，11/17 有人在 8× RTX PRO 6000 上用官方 prebuilt 重現；Unsloth 沒重傳，11/15 改成在文件裡教用 <code>--ple</code> 換表）。改法有四種：b12233 起用 <code>--ple</code> 直接掛 Unsloth 另外提供的 Q6_K／Q5_K／IQ4_NL 表（Q6_K 161.3 GB，沒人量過損失；原本的 Engram shard 可以不下載）、從官方權重自己轉 BF16（約 393 GB）、build 已關閉的 #30817，或改用 Strata。Engram 一定要用 <code>-ot "per_layer_token_embd.weight=CPU"</code> 留在 host 記憶體，而且要寫在 <code>--cpu-moe</code> 前面。卡住它的是 <a href="https://github.com/ggml-org/llama.cpp/issues/30944" rel="noopener">#30944</a>：重用已經 cache 的 prompt 前綴時會出現單一 token 錯字。修正 PR #31292 在 11/03 合併，進了 v0.9.0（11/04），但 #30944 當天就重開：有人在 Windows CUDA 上回報仍可重現，觸發點是從 host 記憶體的 prompt cache（<code>--cache-ram</code>）還原 context checkpoint，而且單 slot（<code>-np 1</code>）也會發生，設 <code>--cache-ram 0</code> 就正常 <span class="conf" data-c="r">社群回報</span>。11/14 有人在 b12375 上用全 GPU、四個 slot、強制從 <code>--cache-ram</code> 還原，needle 和逐字檢查 34/34 正確，回報修好了；但 experts 放 RAM 的 CUDA 混合推論還沒人驗證，保險的做法是先 <code>--cache-ram 0</code>，到手後自己驗證。整個關掉的話，對 Claude Code 來說每一輪都要整段重算，64K context 每輪約 2–2.7 分鐘，只適合單次的長文件分析。另外，混合推論的 prefill 大約是「<code>-ub</code> × PCIe 頻寬 ÷ 留在 RAM 的 expert 位元組」，2× RTX 5090 配 EPYC 用 <code>-ub 512</code> 跑 285K prompt 只有 49.6 tok/s，所以 <code>-ub</code> 要開到 4096 以上。Strata 是第三條路（11/18 出到 0.2.16，engine 改用自己的程式碼），0.2.8 修好了多卡的 deadlock 和 slot 存檔，有 Anthropic API，但 KV 只放 VRAM、256K 以上沒測過，DeepSeek 的 NVIDIA 多卡只有 2× RTX A6000 的數字。11/11 有人用一張 RTX 5080 配 128GB 跑 ISTA 2-bit 級的 Coder 檔，decode 8.4–10.4 tok/s <span class="conf" data-c="r">社群回報</span>。第四條路是 ik_llama.cpp：11/13 有人用 EPYC 9355 配一張 RTX PRO 5000 48GB 跑 1017 的 MXFP4 experts（<code>--cpu-moe</code>、1M context、<code>-ub 32768</code>），新的 4K prompt 4.3 秒（約 950 tok/s），從 cache 還原重送 80 毫秒，RAM 大小和 decode 沒寫 <span class="conf" data-c="r">社群回報</span>。</p>
+        <h3>模型本身</h3>
+        <p>8/5 釋出，Apache-2.0，27B dense，架構跟 Qwen3.6-27B 一樣：64 層，每 4 層裡 3 層 Gated DeltaNet、1 層 full attention，所以只有 16 層要存 KV（4 個 KV head × 256 維），每 token 64 KiB <span class="conf" data-c="c">已確認</span>。原生 262K context、可以看圖和影片、有 MTP head，thinking 預設開（<code>reasoning_effort</code> 只收 xhigh、medium、low）。分數在這個尺寸很好：DeepSWE 42.2、SWE-bench Pro 61.7（都是 Claude Code harness）、Terminal-Bench 2.1 73.0。朋友覺得它聰明是對的。</p>
+        <p><strong>放得下。</strong>Q4_K_M 16.81 GB（15.66 GiB）加 32K 的 q8_0 KV 1.06 GiB、GDN state 0.15 GiB、compute buffer 約 1 GiB，約 18 GiB。llama.cpp 預設存 32 個 context checkpoint，每個約 150 MiB，要降到 8 個，總共約 19 GiB <span class="conf" data-c="e">推估</span>。Q5 級（約 20 GB）是上限，Q6_K 以上加 KV 就超過預算。</p>
       </div>
       <div>
-        <h3>GLM：官方精度，但 decode 慢</h3>
-        <p>KTransformers 從 8/26 起原生支援 GLM-5.3-Flash，直接讀官方 FP8，文件寫明支援 RTX 50（SM120），CPU 端用 AVX-512 FP8 kernel，README 直接拿 EPYC 9355 當例子。384 GiB 扣掉作業系統後大約還有 40–50GB 餘裕。</p>
-        <p>GLM 還沒有可以拿來換算的 FP8 混合推論實測。唯一的 KTransformers FP8 decode 數字是 DataCamp 教學（10/06）的約 11 tok/s，用的是兩張 RTX PRO 6000、350GB 以上 RAM 的 RunPod 機器，CPU 型號沒寫 <span class="conf" data-c="r">社群回報</span>。比 A 推估的 15–20 低，但雲端機器的 CPU 和頻寬都不明，只能當「15–20 可能偏樂觀」的提醒，數字先不改。最接近的是 TR PRO 5975WX（DDR4 8 通道）配兩張 3090 跑 EXL3 3.05 bpw：prefill 1,106–1,155、decode 48–50 tok/s，真實 agent 回合 37.7 tok/s <span class="conf" data-c="r">社群回報</span>。FP8 每個 token 要讀的 expert bytes 約是 3 bpw 的 2.6 倍，所以 A 的 decode 只推到 15–20 tok/s。文件還列了兩個坑：開 Layerwise Prefill 會讓常駐 GPU 的 experts 歸零；沒提到 MTP。要 MTP 得改用 llama.cpp（10/7 合併），同時接受 8-bit 以下的 GGUF，Unsloth 最高只到 UD-Q6_K_XL（292GB，KLD 0.019）。</p>
+        <h3>慢在 prefill，換量化救不了</h3>
+        <p>dense 模型每個 token 都要算全部 27B 參數。prefill 是算力瓶頸，M1 Pro 的 GPU 只有 5090 的幾十分之一：同款機器跑 MLX 4-bit 的 prefill 52–55 tok/s，朋友那種 5090 是 2,268–2,430，差 40 倍以上；decode 10.5 對 47–72（LM Studio 偏慢）<span class="conf" data-c="r">社群回報</span>。</p>
+        <ul class="plain">
+          <li>換小量化（UD-IQ3_XXS 10.93 GB）只會讓 decode 快一點，prefill 不會變快，IQ 系在 Metal 上還可能更慢。</li>
+          <li>MLX 4-bit 開 Float16 Activations 約 70 tok/s，30K 首字還是要 7–8 分鐘 <span class="conf" data-c="e">推估</span>。</li>
+          <li>MTP 在 M1 上沒幫助：verify 卡在 ALU，同款機器的 oQ3.5e-mtp decode 只有 6.9，比 4-bit 不開 MTP 的 10.5 還慢 <span class="conf" data-c="r">社群回報</span>。</li>
+          <li>一個要 20–40 輪工具呼叫的 agent 任務，加上每輪 1,000 token 左右的 thinking（10 tok/s 就是 1.7 分鐘），會跑上一小時以上 <span class="conf" data-c="e">推估</span>。</li>
+        </ul>
+        <p>適合的用法：prompt 在 4–8K 以內、可以等的單次問答。4K prompt 約 1 分鐘出第一個字，再加 1–3 分鐘的輸出。它的 RL 微調版（DaisyRose-27B、sabi-noema，自報 DeepSWE 46–48）也是一樣的速度。</p>
       </div>
     </div>
-    <div class="cols">
-      <div>
-        <h3>Qwen：好跑，要測 cache</h3>
-        <p>KTransformers 不支援 Qwen3.8，但 llama.cpp 主線早就支援，ik_llama.cpp 和 Strata 也能跑。384 GiB 連 BF16 都放得下，但 8-bit 的 PPL 只比 BF16 多 0.09%，沒有必要。RTX 5080 原本只有 SGLang＋EXL3 2.05 bpw 一筆，256K 時 decode 43.1、prefill 1,490 tok/s。11/10 有人用 Strata 0.2.13.1 在一張 RTX 5080 配 7800X3D、128GB 上跑 UD-Q4_K_XL，decode 54.6–63.1，prompt 4K／16K 是 2,131／3,522 tok/s <span class="conf" data-c="r">社群回報</span>，比 A 的 Q8_0 推估 40–60 還高。但不能直接比：Q4_K_XL 每個 token 讀的 expert bytes 只有 Q8_0 的一半多，而且 Strata 預設會跳過部分低權重的 expert（<code>STRATA_ROUTE_TAIL_SKIP=7</code>），不是精確計算，設成 0 時 decode 從 56.3 掉到 37.4。llama.cpp 要用 10/30 之後的 build：GDN 回滾時會還原到錯誤狀態的 bug，10/29 由 #31350 修好，10/30 的 #31368 再加了防護。另外，原本記在 DeepSeek 名下的 #31220 其實是 Qwen3.8 在 DGX Spark 上 DFlash／MTP 接受率下降，維護者重現不出來，用 MTP 時留意就好。llama.cpp v1.0.0 起有 MoE cache（<code>--moe-cache-mib</code>），熱門 experts 留在 VRAM 由 GPU 算，作者在 Qwen3.8 IQ4_NL 上用 19 GB cache 量到 54–66 tok/s；A 的兩張 16GB 卡能給 cache 的空間小很多，要用 <code>scripts/moe-cache-tune.py</code> 實測。</p>
-      </div>
-      <div>
-        <h3>MiniMax：主線已支援，GGUF 要重轉</h3>
-        <p>官方權重本身就是 QAT 的 NVFP4。llama.cpp 11/15 合併了 ngxson 重寫的 #32301（b12420 起），原本的 #31192 沒合併就關掉。#32301 只在 8× H200 上驗證（perplexity 跟 SGLang 差 0.3%，DSpark 在 code 上接受率 66%）。Unsloth 的 GGUF 是照 #31192 轉的，沒有 #32301 依賴的 <code>indexer_types</code> metadata，而 M3.1 的 60 層全部有 indexer，主線的相容規則卻假設前 3 層沒有，依程式碼推論會載入失敗，還沒有人回報。要用主線，就從官方權重自己轉，或等 Unsloth 重傳 <span class="conf" data-c="e">推估</span>。SGLang＋KTransformers 保留 NVFP4 的路線也在補：05yuki 11/07 開了 SGLang #49079 和 KTransformers #2266，把 SwiGLU 的 clamp 參數傳給 CPU experts。沒修之前 CPU experts 跑的是一般 SiLU，一層 expert 對參考值的 cosine 只有 0.06–0.17。兩個 PR 都還沒合併，也沒人在 RTX 50 上測過。KTransformers 只支援上一代 M3，而且只寫 SM90；vLLM 和 SGLang 只寫資料中心級 GPU；ik_llama.cpp 只能在 CPU 上用 dense attention 載入。實測參考：EPYC 9654 配一張 5090 跑 UD-IQ3_S，PR #31192 prefill 425–433、decode 19.6–23.3 tok/s <span class="conf" data-c="r">社群回報</span>。</p>
-      </div>
-    </div>
-
-    <div class="callout">
-      <p><strong>接 Claude Code 的兩件事。</strong>不管用哪個 server，都要設 <code>CLAUDE_CODE_ATTRIBUTION_HEADER=0</code>，不然每輪 system prompt 開頭都不一樣，prefix cache 永遠打不中。SGLang 和 llama.cpp server 都有 Anthropic 的 <code>/v1/messages</code>，ik_llama.cpp 沒有，要另外加 proxy。另一個常被忽略的延遲是 cache 命中後新加的幾百到幾千個 token：在 KTransformers 的 GPU prefill 門檻以下，這段由 CPU 算 experts，Zen 5 的 EPYC 9355 純 CPU 約 97 tok/s，門檻要依實際的工具結果長度調。門檻以上也有固定成本：05yuki 的 fork 每輪新 token 超過 512 個，就把每層的 experts 複製到 GPU 算，作者量到兩張卡固定要 5–7 秒，一張卡 9–11 秒 <span class="conf" data-c="r">社群回報</span>。Claude Code 的工具結果常常超過 512 token，所以 A 上每一輪大概至少多 5–7 秒 <span class="conf" data-c="e">推估</span>。參考：MiniMax 在 cache 命中後加 100 token 要 1.02 秒、300 token 要 1.45 秒；GLM 在兩張 3090 上 prefix cache 命中 72.9%，工具呼叫回合中位數 7.6 秒。05yuki 的 fork 在 11/15 之前有個問題：長時間 session 把 prefix cache 的 pool 填滿之後，借給 KV 的 hot experts 不會還回來，decode 從約 54 掉到約 30 tok/s。11/15 修好（#16），要用之後的版本。</p>
-    </div>
-    <p class="note">TensorFold 用不上配置 A。它的 CUDA engine 要求權重整個放進顯存，沒有 KTransformers 那種 CPU 加 GPU 的混合推論，四個模型都放不進一或兩張 16GB 的卡；Flash Next 的 EXL3 expert offload（#1441 那串，含 RTX 50 的 sm_120）10/27 開到現在還沒合併。Linux release 有 sm_120 的 kernel，Windows 只能自己從原始碼編。11/11 X 上的「Qwen3.8-27B 單張 RTX 5090 破 1,000 tok/s」是另一個 engine（Cinference）把 8 條平行 lane 加總，TensorFold 自己的 fanout 是 8 條瞬間最高約 926，也是加總；單一 stream 在 5090 上是 prose 215–279、code 434–539 tok/s <span class="conf" data-c="r">社群回報</span>。不在追蹤名單的 27B 只有 EXL3 3.00 bpw（約 13.8 GiB）放得進一張 5080，context 大概只剩 16K–24K <span class="conf" data-c="e">推估</span>，RTX 5080 上也還沒有任何 TensorFold 的實測。</p>
-  </section>
-
-  <section id="pc-other-builds">
-    <h2>B、C 能跑到哪裡</h2>
+    <h3>量化檔</h3>
     <div class="table-wrap">
       <table class="hybrid">
-        <thead><tr><th scope="col">模型</th><th scope="col">B：TR PRO 256GB＋4× 5080（約 320 GiB）</th><th scope="col">C：AM5 256GB＋2× 5080（約 288 GiB）</th></tr></thead>
+        <thead><tr><th scope="col">格式</th><th scope="col">檔案與大小</th><th scope="col">品質</th><th scope="col">判斷</th></tr></thead>
         <tbody>
-          <tr><th scope="row">DeepSeek V4.1 Flash 1017</th><td>不要硬塞 UD-Q8_K_XL（主幹 305.6 GB，Unsloth 建議 RAM＋VRAM 315 GB，只剩約 37GB 給其他東西）。改用 Unsloth 的 UD-IQ3_S（262.3 GB，KL 0.0316、top-1 96.0%，主線原生就能讀），或 UD-Q3_K_XL（282.3 GB，KL 0.0204，但要換 Engram）；decode 20–30、prefill 500–600 <span class="conf" data-c="e">推估</span>。B 也是單 socket，形式上符合 05yuki expert cache 的條件，但四張卡沒人測過</td><td>原本寫的 2-bit（IQ2_XXS 138GB＋Engram IQ4_NL，NLL 1.0479）是 ISTA 的 GSQ-RCO，不是 Unsloth。改用主線＋UD-IQ3_XXS（233.5 GB，KL 0.0625）或 UD-IQ3_S，decode 7–13、prefill 250–350 <span class="conf" data-c="e">推估</span>。精度明顯較好，速度較慢；不能開 prompt cache 時 64K 每輪要 3–4 分鐘，只適合單次的長文件分析</td></tr>
-          <tr><th scope="row">GLM-5.3-Flash</th><td>FP8 不行（RAM 不到 350GB），改用 UD-Q6_K_XL（KLD 0.019）</td><td>FP8、Q6 都放不下，只能 4-bit 等級</td></tr>
-          <tr><th scope="row">Qwen3.8-Flash-Next</th><td>Q8_0 可以，VRAM 放得下約三分之一的 experts</td><td>Q8_0 放得下，但雙通道頻寬讓 decode 只剩約 10–15 tok/s <span class="conf" data-c="e">推估</span></td></tr>
-          <tr><th scope="row">MiniMax M3.1 Flash</th><td>官方 NVFP4 可以（自己從官方權重轉 GGUF，主線 #32301），KV 空間比 A 多</td><td>勉強放得下（16K context 建議 272GB），decode 約 6–9 tok/s <span class="conf" data-c="e">推估</span></td></tr>
+          <tr class="pick"><th scope="row">MLX（oMLX）</th><td><code>mlx-community/Qwen3.8-27B-4bit</code> 16.05 GB；<code>Jundot/Qwen3.8-27B-oQ4e-mtp</code> 17.52 GB（另有 oQ4e-fp16-mtp 18.44 GB）</td><td>Jundot 的表（對 BF16，不含 vision 和 MTP）：oQ4 的 KL 約 0.012–0.018，oQ3 是 0.037–0.082，oQ2 到 0.08–0.21</td><td><span class="verdict" data-v="rec">用這個</span><div class="note">MLX 在這台 prefill 比 llama.cpp 快一點，又能開 Float16 Activations</div></td></tr>
+          <tr><th scope="row">GGUF Q4_K_M</th><td>lmstudio-community 16.81 GB、unsloth UD-Q4_K_M 16.56 GB、bartowski 17.44 GB；UD-Q4_K_XL 17.66 GB</td><td>沒有公開的 KLD</td><td><span class="verdict" data-v="alt">朋友用的版本</span><div class="note">llama.cpp 的 prefill 推估約 45–50，hybrid 模型的 prefix cache 還很脆</div></td></tr>
+          <tr><th scope="row">GGUF Q5_K_M</th><td>bartowski 20.92 GB、unsloth UD-Q5_K_M 19.87 GB</td><td>—</td><td><span class="verdict" data-v="no">太緊</span><div class="note">加上 KV 和 checkpoint 就到 22 GB 的上限</div></td></tr>
+          <tr><th scope="row">3-bit 級</th><td>UD-IQ3_XXS 10.93 GB、UD-Q3_K_XL 13.15 GB、oQ3.5e-mtp 14.92 GB</td><td>oQ3 的 KL 是 oQ4 的 3–5 倍</td><td><span class="verdict" data-v="no">不划算</span><div class="note">prefill 不會變快，精度掉一截</div></td></tr>
         </tbody>
       </table>
     </div>
-    <p class="note">更便宜的 64–128GB 桌機不值得拿來跑 DeepSeek。Unsloth 10/30 宣傳 Dynamic v3.1「64GB+ RAM 就能跑」，但沒附任何量測，最小的 UD-IQ1_S 主幹就要 122.4 GB。用原價屋 11/11 的標價組 AM5 9950X＋一張 RTX 5080（INNO3D X3）：64GB 約 NT$137,596，128GB 約 NT$201,208（記憶體也在原價屋買；PChome 的 Crucial 128GB 套組暫停販售，原本 162,809 的組法現在買不到）<span class="conf" data-c="e">推估</span>。64GB 加一張 5080 跑 UD-IQ1_S，有 20–50 GB 的 experts 要從 NVMe 讀，decode 推估 2–6 tok/s；128GB 加兩張 5080（約 NT$28.2 萬）可以把 UD-IQ1_M 完整放進 RAM＋VRAM，decode 推估 12–18 tok/s。但 UD-IQ1_M 的 top-1 只有 87.1%，跟原模型差很多。v3.1 的完整整理見 Mac 分頁的 <a href="#unsloth">Unsloth Dynamic v3.1</a>。</p>
   </section>
 
-  <section id="pc-vs-mac">
-    <h2>對照 M5 Ultra</h2>
-    <p class="measure">Mac 的數字一律取 Mac 分頁 <code>assets/data.js</code> 裡各模型建議量化的推估，信心標記照原檔；自組機是配置 A 的推估。Decode 欄的 Mac 數字是「開 speculative／不開」。Mac＋NVIDIA helper 的組合見下方「第三條路」，它超出預算，不在比較表裡。</p>
+  <section id="m1p-speed">
+    <h2>速度</h2>
+    <p class="measure">下表是同款或最接近這台的公開數字，最後幾列是這台的推估（16 核 GPU；14 核的 prefill 再乘約 0.87）。</p>
     <div class="table-wrap">
-      <table class="hybrid">
-        <thead><tr><th scope="col">模型</th><th scope="col">Mac 建議配置</th><th scope="col">Mac prefill</th><th scope="col">Mac decode</th><th scope="col">配置 A</th><th scope="col">A prefill</th><th scope="col">A decode</th><th scope="col">Claude Code 的 prompt cache</th></tr></thead>
+      <table class="measured">
+        <thead><tr><th scope="col">機器</th><th scope="col">模型與量化</th><th scope="col">Runtime</th><th scope="col">Prefill（tok/s）</th><th scope="col">Decode（tok/s）</th><th scope="col">信心</th></tr></thead>
         <tbody>
-          <tr><th scope="row">DeepSeek V4.1 Flash</th><td>oQ4e-ngram-mtp，oMLX</td><td class="num">3,000–3,900（開 CED）<span class="conf" data-c="r">社群回報</span></td><td class="num">60–90／46–52 <span class="conf" data-c="r">社群回報</span></td><td>KTransformers fork（官方精度，待 384GB 實測）或 UD-Q8_K_XL，llama.cpp（原檔的 Engram 是 type 43，要先換）</td><td class="num">KT 沒有實測，應介於 697–863 和 1,600–1,872 之間；llama.cpp 400–550</td><td class="num">KT 應介於 15–20 和 37–54 之間；llama.cpp 30–45</td><td>Mac 用 oMLX 的 RAM＋SSD 分層。A 的 llama.cpp：#30944 仍 open，11/14 有一筆全 GPU 驗證修好，混合推論沒人驗證。KT：11/01 起預設開，合成測試通過，沒有 Claude Code 的命中率</td></tr>
-          <tr class="pick"><th scope="row">GLM-5.3-Flash</th><td>8-bit（由 FP8 轉，或直接載官方 FP8），oMLX</td><td class="num">1,950–2,090 <span class="conf" data-c="r">社群回報</span></td><td class="num">40–55 <span class="conf" data-c="r">社群回報</span>／22–30 <span class="conf" data-c="e">推估</span></td><td>官方 FP8，SGLang＋KTransformers</td><td class="num"><strong>1,000–2,000</strong></td><td class="num">15–20</td><td>A 用 SGLang radix cache，跟 KDA 狀態和 KTransformers offload 能不能一起用還沒驗證</td></tr>
-          <tr><th scope="row">Qwen3.8-Flash-Next</th><td>oQ8e-mtp，oMLX</td><td class="num">4,500–4,900 <span class="conf" data-c="r">社群回報</span></td><td class="num">87–119 <span class="conf" data-c="m">實測</span>／50–60</td><td>Q8_0，llama.cpp</td><td class="num">700–1,500</td><td class="num">40–60</td><td>兩邊都要實測</td></tr>
-          <tr><th scope="row">MiniMax M3.1 Flash</th><td>官方 NVFP4／MXFP8，oMLX main</td><td class="num">650–900 <span class="conf" data-c="e">推估</span></td><td class="num">45–65／34–36 <span class="conf" data-c="e">推估</span></td><td>官方 NVFP4（自己轉 GGUF），llama.cpp 主線</td><td class="num">250–350</td><td class="num">17–22</td><td>A 的 CUDA 混合推論沒人測過</td></tr>
+          <tr><th scope="row">M1 Pro 16 核 32GB</th><td>Qwen3.8-27B MLX 4-bit</td><td>oMLX（11/20–11/24，多筆）</td><td class="num">1K–8K：51.7–55.1</td><td class="num">10.2–10.7</td><td><span class="conf" data-c="r">社群回報</span></td></tr>
+          <tr><th scope="row">M1 Pro 16 核 32GB</th><td>Qwen3.8-27B oQ3.5e-mtp</td><td>oMLX</td><td class="num">1K：53.3</td><td class="num">6.9（開 MTP 反而更慢）</td><td><span class="conf" data-c="r">社群回報</span></td></tr>
+          <tr><th scope="row">M1 Pro 16 核 32GB</th><td>Qwen3.6-27B oQ4-fp16-mtp</td><td>oMLX 0.4.0，fp16</td><td class="num">1K／4K：69.9／73.8</td><td class="num">10.6／10.4</td><td><span class="conf" data-c="r">社群回報</span></td></tr>
+          <tr><th scope="row">M1 Pro 16 核 32GB</th><td>Qwen3.6-35B-A3B oQ3.5e-mtp</td><td>oMLX</td><td class="num">4K 515、8K 489、16K 446–471</td><td class="num">31–45（MTP）；MLX 4-bit 55</td><td><span class="conf" data-c="r">社群回報</span></td></tr>
+          <tr><th scope="row">M1 Pro 14 核</th><td>Qwen3.6-35B-A3B</td><td>oMLX 0.3.5（4 月）</td><td class="num">32K：236</td><td class="num">21.5</td><td><span class="conf" data-c="r">社群回報</span></td></tr>
+          <tr><th scope="row">M1 Pro 16 核 32GB</th><td>Inkling 2 Mini oQ4e-mtp／oQ3e</td><td>oMLX（11/24–25）</td><td class="num">32K：172–214；oQ3e 64K：189</td><td class="num">12–17</td><td><span class="conf" data-c="r">社群回報</span></td></tr>
+          <tr><th scope="row">M1 Pro 16 核 32GB</th><td>GPT-OSS-20B MXFP4</td><td>llama.cpp</td><td class="num">4K 508、16K 411、32K 325</td><td class="num">30–42</td><td><span class="conf" data-c="r">社群回報</span></td></tr>
+          <tr><th scope="row">M1 Max 64GB</th><td>Qwen3.8-27B</td><td>llama.cpp b12370</td><td class="num">13,071 token：94.1</td><td class="num">—</td><td><span class="conf" data-c="r">社群回報</span></td></tr>
+          <tr><th scope="row">RTX 5090</th><td>Qwen3.8-27B Q4_K_M、MTP 2</td><td>LM Studio</td><td class="num">2,268</td><td class="num">47.4</td><td><span class="conf" data-c="r">社群回報</span></td></tr>
+          <tr><th scope="row">RTX 5090</th><td>Qwen3.8-27B Q6_K、MTP 2</td><td>llama.cpp</td><td class="num">2,430</td><td class="num">72.0</td><td><span class="conf" data-c="r">社群回報</span></td></tr>
+          <tr class="pick"><th scope="row">這台</th><td>Qwen3.6-35B-A3B oQ3.5e-mtp</td><td>oMLX，fp16、MTP 關</td><td class="num">32K 380–420、64K 約 300</td><td class="num">30–55</td><td><span class="conf" data-c="e">推估</span></td></tr>
+          <tr class="pick"><th scope="row">這台</th><td>Qwen3.8-27B MLX 4-bit</td><td>oMLX，fp16</td><td class="num">4K 約 70、32K 60–65、64K 約 55</td><td class="num">4K 10.5、32K 約 9、64K 約 8</td><td><span class="conf" data-c="e">推估</span></td></tr>
+          <tr class="pick"><th scope="row">這台</th><td>Qwen3.8-27B Q4_K_M</td><td>llama.cpp</td><td class="num">4K 45–50、32K 約 45、64K 約 40</td><td class="num">4K 8–9、32K 約 7.5、64K 約 6.5</td><td><span class="conf" data-c="e">推估</span></td></tr>
         </tbody>
       </table>
     </div>
-    <p class="note">配置 A 原本只有 GLM 的 prefill 可能比 Mac 快，因為它用 FP8 原檔，兩張卡走 PCIe 5.0 串流。但 Mac 分頁 11/11 把 GLM 8-bit 的 prefill 推估從 950–1,150 上調到 1,700–2,000，11/19 再改用 512GB 的社群上傳 1,950–2,090，A 的 1,000–2,000 最多打平。Mac 上的 GLM 也有自己的風險：Mac 分頁記錄 oMLX 0.7.0.dev2 在 512GB 的 M3 Ultra 上重跑 256K 會 OOM（11/13 有人在 M5 Ultra 512GB 用改過的 oMLX main 跑到 1.04M，沒有 OOM）。四個模型的 decode 都是 Mac 領先，DeepSeek、Qwen、MiniMax 的 prefill 也是。DeepSeek 在 Mac 上可以同時保有官方精度、prompt cache 和 1M context。配置 A 上，05yuki 的 KTransformers fork 如果在 384GB 跑得起來，官方精度和 1M context 都保得住，但多輪 prompt cache 只有合成測試，沒有 Claude Code 的實際命中率；llama.cpp 路線保得住 1M context，但 Engram 要換掉（<code>--ple</code>）、prompt cache 要自己驗證。</p>
-
-    <div class="cols">
-      <div>
-        <h3>Mac 分頁的 DeepSeek prefill 改用 512GB 的數字</h3>
-        <p><code>data.js</code> 的 M5 Ultra DeepSeek prefill 11/19 改用 512GB 的社群上傳：跟 Mac 分頁的配置相同（oQ4e-ngram-mtp、Engram 放 SSD、CED 開、A8 關），32K–195K 是 3,525–3,995，另一位上傳者（含唯一一筆 oMLX 0.8.0 正式版）只有 3,009–3,180，所以取 3,000–3,900 <span class="conf" data-c="r">社群回報</span>；不開 speculative 的 decode 46–52。11/11 的推估 2,300–3,700 是用 oQ2e 的官方實測推的。沒開 CED 的數字低很多：512GB 上傳是 1,243–2,406；其他 runtime 也比較低，llama.cpp 的 pp2048 是 632，DwarfStar 在 33.5K 量到 615–1,146，mlx-serve 10/18 的版本 32K 只有 441 <span class="conf" data-c="r">社群回報</span>。Mac 這邊的官方精度、prompt cache 和 1M context 都有比較完整的佐證；配置 A 的官方精度路線要等 05yuki fork 在 384GB 上的實測，這個分頁的結論先不變。</p>
-      </div>
-      <div>
-        <h3>輸在記憶體價格，不是硬體</h3>
-        <p>同樣兩張 16GB 卡，社群在 2019 年等級的 Zen 2／PCIe 4.0 主機上，用 512GB DDR4 跑原生 MXFP4 的 DeepSeek，prefill 就有 1,600–1,873 tok/s，落在 Mac 沒開 CED 的 1,243–2,406 之間，但還不到 Mac 開 CED 的 3,000–3,900。換成 PCIe 5.0 的平台應該還會更快。只要 RAM 有 512GB，混合推論 PC 在 DeepSeek 的長文件 prefill 上還是有競爭力，差的就是那 128GB，以今天的台灣價格要再多花 NT$15–24 萬。05yuki 的 expert cache 如果在 384GB 上可行，這個差距就不存在了。</p>
-      </div>
-    </div>
-    <h3>第三條路：Mac＋NVIDIA prefill helper（超出預算）</h3>
-    <p>oMLX 0.8.0（11/18）的 Prefill Accelerator 可以讓一台 Linux＋NVIDIA 的 PC 幫 Mac 算 prompt 前面幾層：PC 算完，把每個 chunk 的 hidden state 和 cache 送回 Mac，decode 和 KV cache 都還在 Mac 上。官方在 M3 Ultra 512GB 配兩張 48GB 的 RTX A6000、2.5 GbE 直連上量到 64K prompt：DeepSeek 1,085 → 1,914、Qwen Flash-Next 1,370 → 3,928 tok/s <span class="conf" data-c="m">實測</span>。</p>
-    <p>換成 RTX 5080 就小很多。Mac 端規劃層數時每張卡先保留 8 GiB 給 activation 和 allocator（helper 自己另外保留 6 GiB），一個模型最多用兩張卡。16GB 的 5080 每張大約只剩 7 GiB 放權重，兩張合計 DeepSeek 0–2 層（每層約 6.5–7.8 GiB，可能一層都排不進）、GLM 和 MiniMax 約 2 層、Qwen 約 7–8 層 <span class="conf" data-c="e">推估</span>。M5 Ultra 主機的加速會比用 6 GiB 保留算出來的 DeepSeek 3–8%、GLM／MiniMax 5–10%、Qwen 10–20% 還低 <span class="conf" data-c="e">推估</span>。RTX 50 和 M5 Ultra 主機都還沒有人測過。oMLX 0.8.1（11/21）要把 helper 更新到 0.1.7（重新 <code>docker pull jundot/omlx-cuda-helper</code>，舊版會跳警告）；0.1.7 修掉 Qwen 系 linear-attention 層在 chunk 之間多佔的記憶體（27B 每層約 40 MiB，Flash-Next 也是同一個修正），Qwen 能多排一點，但上面的層數推估不變。oQh 量化的模型也不會再被 CUDA helper 拒絕。</p>
-    <p>這條路也組不進預算：NT$805,400 是 Mac 或自組 PC 二選一的上限，Mac 本身就用完了，兩張 5080 的 helper 約 NT$16.5 萬，合計約 NT$97 萬。手上的 3060 Ti 只有 8GB，扣掉 8 GiB 的保留就一層都排不進（見<a href="#sff-aux">3060 Ti 小機殼分頁</a>）。如果以後預算放寬，VRAM 大的卡或 DGX Spark（原價屋 NT$199,500，官方在 M3 Ultra 上量到 DeepSeek +122%）比多買幾張 5080 有效。</p>
+    <p class="note">推法：MLX 的數字從同款機器的實測出發，context 的衰減照另一台 M1 的實測（prefill 4K 到 32K 掉 8%、decode 1K 到 32K 掉 13%）。llama.cpp 用 M1 Max 的 94 tok/s 除以 2（GPU 核數和頻寬都是一半）。decode 用 llama.cpp 舊的 Apple Silicon 表推出 M1 Pro 的有效頻寬約 139 GB/s，除以每個 token 要讀的權重和 KV。M1 Pro 上沒有任何 llama.cpp 跑這兩個模型 16K 以上的實測。</p>
   </section>
 
-  <section id="pc-todo">
-    <h2>下單前要確認</h2>
-    <div class="table-wrap">
-      <table class="hybrid">
-        <thead><tr><th scope="col">項目</th><th scope="col">為什麼重要</th><th scope="col">怎麼確認</th></tr></thead>
-        <tbody>
-          <tr><th scope="row">原價屋「限搭機」的門檻</th><td>CPU、主機板不在原價屋買算不算搭機，決定 A 能不能用 5080</td><td>打電話或到門市問</td></tr>
-          <tr><th scope="row">原價屋能不能一次賣 2／4 張 INNO3D X3</th><td>它是現在最便宜、也是唯一標雙槽的 5080，A、B 的總價都用它算。原價屋 5080 11/19 只剩兩款，換另一款 iChill X3 V2（64,888）A 會超出 3,536</td><td>問原價屋庫存和一次能買幾張，也問「任搭 1000」能不能套用</td></tr>
-          <tr><th scope="row">B 的主機板</th><td>ASRock WRX90 WS EVO 原價屋下架，改用 ASUS WRX90E-SAGE SE（44,990）</td><td>看手冊確認 4 張雙槽卡的槽距</td></tr>
-          <tr><th scope="row">G.Skill 超頻 RDIMM 在 K14PA-U12 上的表現</th><td>伺服器板不一定支援 EXPO，可能只跑 JEDEC 速度，頻寬會下降</td><td>查主機板 QVL、問賣家，或改走伺服器經銷</td></tr>
-          <tr><th scope="row">K14PA-U12 的細節</th><td>是否支援 Turin 的 DDR5-6400（每通道 1 條），x16 槽數和間距夠不夠直插兩張雙槽卡</td><td>看主機板手冊</td></tr>
-          <tr><th scope="row">SP5 散熱器</th><td>台灣零售通路找不到</td><td>伺服器零件商、露天</td></tr>
-          <tr><th scope="row">正規代理的 EPYC 和 SP5 主機板報價</th><td>避開跨境、沒有保固的風險</td><td>向捷元、聯強、技嘉或華碩的伺服器經銷詢價</td></tr>
-          <tr><th scope="row">05yuki 的 KTransformers fork 在 384GB 上跑不跑得起來</th><td>可以的話，A 就能用官方精度跑 DeepSeek，主力不用換成 GLM。Engram 本來就從 SSD 讀，RAM 的瓶頸是 experts，10/30 已經用 expert cache 處理。但 A 的 375–380 GiB 剛好高於自動開 cache 的門檻，要手動設 <code>KT_MXFP4_EXPERT_CACHE_GIB</code>；11/01 起預設開的 prefix cache 每張卡還要約 5–6 GiB RAM</td><td>等有人公開 384GB 或 Turin 的實測；也要確認 SGLang 的 prefix cache 在 Claude Code 多輪對話下的命中率</td></tr>
-          <tr><th scope="row">llama.cpp #31292／#30944</th><td>#31292 是 #30944 的修正，11/03 合併；11/14 有人在 b12375 上全 GPU 驗證修好，issue 仍 open。決定 DeepSeek 在 llama.cpp 上能不能開 prompt cache</td><td>等人在 CUDA 混合推論（experts 在 RAM）上驗證，或到手後自己用 trace 驗</td></tr>
-          <tr><th scope="row">llama.cpp #32301（MiniMax M3.1）</th><td>11/15 合併，取代 #31192。Unsloth 的 GGUF 缺 <code>indexer_types</code>，主線可能讀不了</td><td>自己用主線轉檔，或等 Unsloth 重傳；有人在 RTX 50 混合推論上測過再改速度</td></tr>
-          <tr><th scope="row">SGLang radix cache 配 KTransformers 跑 GLM 的命中率</th><td>Claude Code 多輪對話的體驗</td><td>到手後用自己的 agent trace 量</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <p class="note">二手 DDR4 EPYC 平台（例如雙 EPYC 7452＋512GB DDR4）可能湊得到 512GB，但記憶體頻寬可能太慢，暫時不考慮。</p>
-  </section>
-
-  <section id="pc-risks">
-    <h2>風險</h2>
+  <section id="m1p-claude">
+    <h2>接 Claude Code</h2>
+    <p class="measure">Claude Code 第一次呼叫就有 21K–40K token（看開了哪些工具），之後每輪只算新增的部分，前提是 prefix cache 有命中。這台的 prefill 慢，cache 能不能穩定命中比什麼都重要，所以先用 oMLX（RAM＋SSD 的 prompt cache、Anthropic Messages API、內建 Claude Code 的啟動設定），llama.cpp 當備案。</p>
     <ul class="risks">
-      <li><strong>餘裕只有 0.55%。</strong>配置 A 離上限只有 NT$4,464：G.Skill 套組只要漲約 1%，或任何一項零件多出四千多，A 就超出預算。這次吃掉餘裕的是顯卡，但最大的變數還是記憶體。台灣零售的 RDIMM 標價比國際現貨低，DigiTimes 報導 64GB RDIMM 現貨「直逼 4 千美元」，任何一次調價都可能讓 A 超出預算。最省事的保險是記憶體改 DDR5-5600 套組（NT$784,436，餘裕回到 2 萬多，頻寬少約 7%）。</li>
-      <li><strong>5080 沒有供貨時間表。</strong>停產傳言跟 NVIDIA 的否認同時存在。原價屋的 5080 從 11/11 的 11 款剩 11/19 的 2 款（都是 INNO3D），PChome 單賣全缺，不用搭機的組合也從 69,590 變成 73,990。5080 SUPER 24GB 據報不做了（TechRadar，未證實）。5070 Ti 天啟（52,990）仍是唯一不用搭機的單卡備案。</li>
-      <li><strong>跨境買 CPU 和主機板。</strong>沒有原廠保固、退換困難，還可能買到被 OEM 鎖住的 CPU，露天上就有標明「戴爾鎖」的 EPYC。</li>
-      <li><strong>SP5 沒有升級路線。</strong>下一代 EPYC 9006 Venice 改用 SP7／SP8 腳位。Venice 的 SP7 平台據報 11/10 開始出貨。日後要擴到 768GB，12 條 32GB 得全部換掉。</li>
-      <li><strong>DeepSeek 的 KTransformers 路線是社群 fork。</strong>兩個 repo 釘的 commit 不一樣，上游還沒加入 1017 需要的 FP8 step（SGLang #45185 到 11/11 仍 open），直接跑輸出可能有偏差。GeForce 沒有 P2P，all-reduce 要經過主記憶體，超過兩張卡完全沒測過。</li>
-      <li><strong>llama.cpp 的 DeepSeek 還很新。</strong>#30944 的修正 #31292 11/03 合併，11/14 有一筆全 GPU 的驗證說修好，issue 仍 open，混合推論沒人驗證。Unsloth 高精度檔的 type 43 跟主線的 FP8 撞號，b12233 起讀錯也不報錯，要用 <code>--ple</code> 換表。原本寫的 #31220 跟 DeepSeek 無關，是 Qwen3.8 在 DGX Spark 上的 DFlash／MTP 回歸，維護者重現不出來。KTransformers 在 WSL2 上的回報，成功或失敗的都找不到。MiniMax 也一樣：Unsloth 的檔是照沒合併的 #31192 轉的，主線 #32301 很可能讀不了。</li>
-      <li><strong>B 的四張卡在 Strata 上有 cache 問題。</strong>11/07 有人用 4× RTX 5080 跑 Strata（Qwen IQ3_S），0.2.7 之後的新預設讓 conversation cache 命中 0/16，關掉新預設（<code>STRATA_DEFAULTS=026</code>）才是 16/16 <span class="conf" data-c="r">社群回報</span>。11/20 回報者找到原因：0.2.7 起預設開的 <code>STRATA_PLE_AUTO_RAM</code> 把 PLE 表鎖在 RAM，conversation cache 能用的記憶體變少，就提早把停著的對話清掉。維護者說 0.2.17 沒改這條規則，issue 還開著，先用 <code>STRATA_PLE_AUTO_RAM=0</code> 避開。B 如果用 Strata 跑多卡，要記得設這個。</li>
-      <li><strong>速度每幾週就變。</strong>同一類硬體上，DeepSeek 的 prefill 10 月內就從 256 變 607 tok/s，又從 779 變 1,758 tok/s。這個分頁自組機的速度都是推估，下單前要重查最新的社群 benchmark。</li>
-      <li><strong>Intel Arc Pro B70 不採用。</strong>32GB 鼓風扇卡在原價屋 NT$51,290、不用搭機，紙面上 VRAM 最划算，但 KTransformers 和這裡的混合推論路線都綁 CUDA。AMD Radeon AI PRO R9700 32GB 原價屋現在也單賣（66,900），同樣綁不上 CUDA 的路線。</li>
+      <li><strong>context 要設對。</strong>Claude Code 2.1.323 起把不認得的模型 ID 當成 1M context，要設 <code>CLAUDE_CODE_MAX_CONTEXT_TOKENS</code> 等於 server 的 context（例如 65536），否則塞滿之後每輪都失敗。到 2.1.332（11/25）都沒改。2.1.332 起，Desktop app 的 Code 分頁會忽略不是 <code>claude</code> 開頭的模型 ID 和低於 200K 的 <code>CLAUDE_CODE_AUTO_COMPACT_WINDOW</code>，接本機 server 用 CLI。</li>
+      <li><strong>Qwen 的模板要換。</strong>官方 <code>chat_template.jinja</code> 遇到 Claude Code 中途插入的 system 訊息會丟例外（<code>System message must be at the beginning.</code>），server 回 400／500；上游以 not planned 關閉，要用社群修過的模板（llama.cpp 用 <code>--chat-template-file</code>）。Qwen3.6、Qwen3.8、Ornith 都一樣。</li>
+      <li><strong>llama.cpp 上 hybrid 模型的 prefix cache 還很脆。</strong>#24055 還開著、修正 #25592 沒合併；thinking 和 tool call 周圍的空白還原不回來會整段重算（#30357）。M1 Max 上有人每輪都從第 9K token 起重算 13K token，等 174 秒。checkpoint 不能關（<code>--ctx-checkpoints 0</code> 會每輪重算），在這台降到 8 個。</li>
+      <li><strong>Inkling 2 Mini 的行為。</strong>官方自己寫它會卡在很長的推理迴圈、做 agent 時會不確認就刪檔或覆寫、回報的結果也不一定準。Claude Code 要維持一般的權限確認、限制 output token，不要讓它自己跑長任務。llama.cpp 上它在 <code>tool_choice=auto</code> 時 20 次有 8 次呼叫沒宣告的 <code>bash</code>（#32966）。</li>
+      <li><strong>thinking 會吃掉 decode 時間。</strong>Qwen3.x 預設 thinking 開、effort xhigh。這台 decode 只有 10–55 tok/s，短任務可以關 thinking（<code>enable_thinking: false</code>）或用 medium。Claude Code 送 <code>max</code>、<code>minimal</code> 的 effort 時，Qwen 的模板會回 400。</li>
+      <li><strong>oMLX 0.8.3 起，Claude Code 的 WebSearch 工具可以在本機模型上用</strong>（#5342），由 oMLX 設定的搜尋服務回答。公司筆電上要確認這個搜尋服務能不能用。</li>
     </ul>
   </section>
 
-  <section id="pc-main-page">
-    <h2>Mac 分頁同步更新</h2>
-    <p class="measure">研究 runtime 時發現 Mac 分頁有幾處已經過時，10/29 已經一起改掉，細節見 Mac 分頁的<a href="#changelog">更新紀錄</a>。</p>
+  <section id="m1p-setup">
+    <h2>設定步驟</h2>
+    <ol class="steps">
+      <li><strong>確認機器和權限。</strong>「關於這台 Mac」看 GPU 核數和 macOS 版本；問 IT 能不能裝 oMLX（DMG 要 macOS 15 以上）、能不能從 Hugging Face 下載約 20 GB 的權重、能不能用 sudo。</li>
+      <li><strong>macOS 15 以前要調 GPU 上限。</strong>預設 21,845 MiB 放不下主選的 21 GiB，用 <code>sudo sysctl iogpu.wired_limit_mb=24576</code> 調到 24 GiB，重開機後要重設。macOS 26、27 的預設約 25,559 MiB，不用調。</li>
+      <li><strong>裝 oMLX 最新正式版，先跑 Qwen3.6-35B-A3B oQ3.5e-mtp。</strong>Model Settings 打開 Float16 Activations、MTP 先關，context 64K，memory guard 用 balanced。用 oMLX 內建的 benchmark 量 4K、32K 的 prefill 和 decode，把數字填回這頁。</li>
+      <li><strong>開著 IDE 和瀏覽器再看一次記憶體。</strong>活動監視器的記憶體壓力維持綠色、沒有 swap 才算過。</li>
+      <li><strong>接 Claude Code。</strong>從 oMLX 的 Claude Code 啟動設定開，或自己設 <code>ANTHROPIC_BASE_URL</code>、<code>ANTHROPIC_MODEL</code>、<code>CLAUDE_CODE_MAX_CONTEXT_TOKENS=65536</code>。換掉 Qwen 的模板。用一組固定的小任務看 tool call 成功率和 cache 命中率，再換 Ornith 跑同一組。</li>
+      <li><strong>oMLX 出 0.8.3 之後的版本時，換 Inkling 2 Mini 跑同一組任務。</strong>context 32K，關掉不用的 app。比較成功率、每輪花的時間（它很冗長）和有沒有 swap，再決定主力是 Inkling 還是 Qwen3.6。</li>
+      <li><strong>Qwen3.8-27B 只放著當問答用。</strong>MLX 4-bit、Float16 Activations、<code>reasoning_effort: medium</code>，prompt 8K 以內。</li>
+    </ol>
+  </section>
+
+  <section id="m1p-aux">
+    <h2>其他用途</h2>
+    <div class="cols">
+      <div>
+        <h3>Embedding 和 reranker</h3>
+        <p>個人規模的 RAG 可以在這台跑：Qwen3-Embedding-0.6B（Q8_0 0.64 GB）或 4B（Q4_K_M 2.50 GB）、Qwen3-Reranker-0.6B（Q8_0 0.64 GB）。從 7B 的 prefill 換算，0.6B 約 2,500–3,500 tok/s，4B 約 400–500 tok/s，100 萬 token 要 35–40 分鐘 <span class="conf" data-c="e">推估</span>。跟主力模型同時跑會搶 GPU：rerank 40 段 512 token 就等於一次 20K 的 prefill。大批文件的索引留給 M5 Ultra 或 <a href="#sff">3060 Ti 小機殼</a>。</p>
+      </div>
+      <div>
+        <h3>M5 Ultra 到貨後當 client</h3>
+        <p>這台只跑 Claude Code，設 <code>ANTHROPIC_BASE_URL=http://&lt;Mac Studio&gt;:&lt;port&gt;</code>、<code>ANTHROPIC_AUTH_TOKEN</code>、<code>ANTHROPIC_MODEL</code>、<code>CLAUDE_CODE_MAX_CONTEXT_TOKENS</code>，本機不吃記憶體，也不用降量化。Anthropic 的文件寫明不支援透過 gateway 讓 Claude Code 接非 Claude 的模型，出問題要自己處理。公司的程式碼會送到私人的主機，要先確認公司政策。</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="m1p-todo">
+    <h2>風險與待確認</h2>
     <ul class="risks">
-      <li><strong>llama.cpp 的 DeepSeek。</strong>#30817 關閉，改由 #31086 在 10/25 合併。Mac 分頁的 server 表、<code>data.js</code> 和 README 都改成「支援，但重用 prompt cache 有錯字 bug（#30944）」；<code>ud-q8</code> 的 Engram 改用 BF16 計算，SSD 從 203 GB 改成約 393 GB；llama.cpp 版本改成 0.8.0。</li>
-      <li><strong>MiniMax M3.1。</strong>llama.cpp 的支援在 PR #31192，Unsloth 的 GGUF 要自己 build 這個 PR。</li>
-      <li><strong>Strata 0.2.7.1。</strong>Mac 分頁和 3060 Ti 附錄改成支援 Qwen3.8 和 DeepSeek。Mac 版的 DeepSeek 只有 2-bit、從 SSD 串流，對 M5 Ultra 的主力配置沒有影響。</li>
-      <li><strong>Mac 售價。</strong>Mac 分頁改成台灣售價 NT$805,400（512GB／2TB），並連到這個分頁。</li>
-      <li><strong>DeepSeek 的速度推估。</strong>Mac 分頁的推估先不改，風險一節補上 mlx-serve、DwarfStar 這兩筆比較低的 M5 Ultra 實測。</li>
-      <li><strong>小地方。</strong>GLM 的 MTP 改寫成 #29928（10/7 合併）；Qwen 的 #28068 改寫成 GDN normalization 的修正；<code>data.js</code> 的 <code>updated</code> 改成 10/29。</li>
+      <li>這台的 macOS 版本、GPU 核數、能不能用 sudo、公司政策都還不知道。</li>
+      <li>速度全部來自同款機器的社群上傳或換算，沒有一筆是這台在開著 IDE 和瀏覽器時量的。Qwen3.6-35B-A3B 在 M1 Pro 上 32K、64K 的新版 oMLX 數字沒有（4 月的 0.3.5 在 14 核上 32K 是 236）。</li>
+      <li>Inkling 2 Mini 的 M1 修正（#5570）11/25 進了 oMLX main，還不知道哪一版會出；32GB 機器開著 IDE 時會不會 swap 也沒有資料。它在 oMLX 上跑長時間的多輪 agent 時記憶體會一直漲（#5539，0.8.2 上 25 分鐘從 17.8 漲到 108.9 GB，還開著）。</li>
+      <li>3-bit 級（oQ3.5e、IQ3_M）對 agent 分數的影響沒有資料。</li>
+      <li>這個尺寸的 agent 分數幾乎都是自報，DeepSWE 只有 Inkling 2 Mini、Qwen3.8-27B、Ornith（22）和 Qwen3.6（0，Ornith 卡上的）有。Ornith 在 M1 上的速度和接 Claude Code 的 tool call 穩定度都沒有資料，Ollama 接 Claude Code 時它的 tool call 解析壞掉（#16992，還開著）。</li>
+      <li>Ollama 的 MLX runner 在 M1 Pro 32GB 上跑 Qwen3.6 會 panic（#18856），GGUF 版正常。</li>
+      <li>長時間 prefill 會讓 GPU 滿載、風扇全速；用電池時 macOS 可能進低耗電模式，速度明顯變低。</li>
     </ul>
   </section>
 
-  <section id="pc-changelog">
+  <section id="m1p-changelog">
     <h2>更新紀錄</h2>
-    <h3>2026-11-21</h3>
+    <h3>2026-11-26</h3>
     <ul class="plain">
-      <li><strong>oMLX 0.8.1 的 CUDA helper 0.1.7。</strong>「Mac＋NVIDIA prefill helper」補上要重新 pull helper，以及 0.1.7 對 Qwen linear-attention 層的記憶體修正和 oQh 支援。官方測過的仍只有 Linux 上的兩張 RTX A6000，層數推估和預算結論不變。</li>
-      <li><strong>Strata #5534 找到原因。</strong>4× RTX 5080 上 conversation cache 命中 0/16，是 <code>STRATA_PLE_AUTO_RAM</code> 造成的，0.2.17（11/20）沒改，先設 <code>STRATA_PLE_AUTO_RAM=0</code>。KTransformers（仍是 v0.7.2）、05yuki 的 fork、llama.cpp #30944 都沒有新進展。</li>
-    </ul>
-    <h3>2026-11-19</h3>
-    <ul class="plain">
-      <li><strong>價格重查，A、C 不變，B 多 6,000。</strong>原價屋的 5080 從 11 款剩 2 款（INNO3D X3 60,888、iChill X3 V2 64,888），PChome 不用搭機的技嘉組合也缺貨，A 的換顯卡變形大多超出預算。B 的 ASRock WRX90 WS EVO 原價屋下架，改用 ASUS WRX90E-SAGE SE，B 變成 NT$795,092。RDIMM 標價沒動，國際現貨連兩週回落，合約價仍漲。</li>
-      <li><strong>llama.cpp v1.0.0、MiniMax 進主線。</strong>#32301（取代 #31192）11/15 合併，但 Unsloth 的 GGUF 可能要重轉。#30944 有第一筆修正後的全 GPU 驗證，仍 open。type 43 改用 <code>--ple</code> 換 Engram 表。</li>
-      <li><strong>05yuki fork 新 tag 和 hot-lend 修正。</strong>雙 socket 2× 5070 Ti decode 54.4；pool 填滿後 decode 從 30 回到 70 tok/s。384GB、Turin 仍沒人測。補上 ik_llama.cpp 在 EPYC 9355 上跑 DeepSeek 1017 的數字。</li>
-      <li><strong>新增「Mac＋NVIDIA prefill helper」。</strong>oMLX 0.8.0 讓 NVIDIA PC 幫 Mac 算 prefill。RTX 5080 扣掉 Mac 端每張 8 GiB 的保留後，兩張合計只接得下 DeepSeek 0–2 層、Qwen 約 7–8 層，M5 Ultra 推估快不到 3–20%，而且 Mac 加 helper 約 NT$97 萬，超出預算，所以只放在「對照 M5 Ultra」當說明。研究筆記在 <code>research_notes/2026-11-19 全面更新/</code>。</li>
-    </ul>
-    <h3>2026-11-12</h3>
-    <ul class="plain">
-      <li><strong>TensorFold 和「27B 破 1,000 tok/s」。</strong>「四個模型」一節最後補一段：TensorFold 的 CUDA engine 要權重整個放進顯存，配置 A 用不上；X 上的 1,000 tok/s 是另一個 engine 在 RTX 5090 上 8 條 lane 的加總。結論和價格都沒變，價格沒有重查。</li>
-    </ul>
-    <h3>2026-11-11</h3>
-    <ul class="plain">
-      <li><strong>價格重查，A 只剩 0.55% 餘裕。</strong>原價屋最便宜的兩款 5080（53,990）下架，改用 INNO3D X3（60,888，仍限搭機），TX-1600 漲 NT$1,200。A 變成 NT$800,936（距上限 4,464），B 變成 789,092，C 變成 373,868，三套的變形、512GB 下限和便宜桌機都重算。RDIMM 價格沒變，但 G.Skill 套組標【客訂】、ADATA 64GB 缺貨；TrendForce 的 RDIMM 現貨 11/02 第一次回落。</li>
-      <li><strong>llama.cpp #31292 合併，#30944 當天重開。</strong>#31292 11/03 進了 v0.9.0，但同一天就有人回報仍可重現，觸發點是從 <code>--cache-ram</code> 還原，<code>-np 1</code> 也會。合併後沒人驗證，DeepSeek 在 llama.cpp 上仍建議關 prompt cache，至少要 <code>--cache-ram 0</code>。type 43 的問題沒變。</li>
-      <li><strong>05yuki 的 fork 預設開 prefix cache。</strong>11/01 起 HiCache 預設開，合成的多 session 測試通過；單 socket TR PRO 3975WX 413 GiB 也跑過，但還是沒有 384GB 或 Turin 的實測。A 的 RAM 說明改得更保守，建議手動設 expert cache；Claude Code 那段補上每輪新 token 超過 512 時兩張卡 5–7 秒的固定成本。</li>
-      <li><strong>新的社群實測。</strong>一張 RTX 5080 用 Strata 0.2.13.1 跑 Qwen UD-Q4_K_XL，decode 55–63；4× RTX 5080 的 Strata conversation cache 問題寫進風險；GLM 補上 DataCamp 的 KTransformers FP8 約 11 tok/s；MiniMax 補上 SGLang＋KTransformers 的 NVFP4 PR。</li>
-      <li><strong>對照 M5 Ultra 跟著 Mac 分頁改。</strong>Mac 的 DeepSeek prefill 推估從 1,700–2,300 上調到 2,300–3,700（開 CED），GLM 8-bit 從 950–1,150 上調到 1,700–2,000，A 的 GLM prefill 不再領先。對照表、說明文字和結論的速度那一欄一起改。</li>
-    </ul>
-    <h3>2026-10-31</h3>
-    <ul class="plain">
-      <li><strong>DeepSeek 在 384GB 上可能有官方精度的路了。</strong>05yuki 的 KTransformers fork 10/30 加了 expert cache，單 socket 256GB 已經實測能跑官方 MXFP4。配置 A 依同樣的規則應該放得下全部 experts，但還沒人測過 384GB。hero、四個模型、對照 M5 Ultra 和下單前要確認都跟著改。</li>
-      <li><strong>Unsloth 的高精度 GGUF 在主線讀錯。</strong>UD-Q3_K_XL 以上的 MXFP8 Engram 用非官方的 type 43，10/29 之後的主線會輸出亂碼。DeepSeek 的 llama.cpp 列改成要先換 Engram，prefill 推估改成 <code>-ub 4096</code> 以上的 400–550。</li>
-      <li><strong>B、C 改用 Unsloth 的 IQ3 系列。</strong>Dynamic v3.1（10/30）只翻新 2-bit 以下，但主線原生就能讀的 UD-IQ3_S／IQ3_XXS 讓 B 多出 40–80 GB 餘裕、讓 C 的精度明顯變好。原本 C 的 2-bit 數字是 ISTA 的 GSQ-RCO，已經更正。新增 64–128GB 便宜桌機的說明。</li>
-      <li><strong>價格重查。</strong>A、B 不變；C 變成 NT$355,788（記憶體、電源小漲，機殼下架）；RDIMM 小漲，512GB 的下限變成 NT$851,982；技嘉 5080 漲到 61,990，欣亞查到 5080 的組裝價。</li>
-      <li><strong>更正 #31220。</strong>那是 Qwen3.8 的問題，不是 DeepSeek。Qwen 改成要用 10/30 之後的 build；Strata 改成 0.2.8。</li>
-    </ul>
-    <h3>2026-10-29</h3>
-    <ul class="plain">
-      <li><strong>建立自組 PC 評估。</strong>Mac Studio M5 Ultra 512GB／2TB 台灣售價 NT$805,400，改查同預算的自組機。查了原價屋、PChome、露天的零件價格，配出三套配置，用社群實測推估四個模型在配置 A 上的速度。研究筆記在 <code>research_notes/非 Mac 自組 LLM 主機/</code>，整理後的報告在 <code>reports/非 Mac 自組 LLM 主機.md</code>。</li>
-      <li><strong>Mac 分頁同步更新。</strong>研究時發現的過時資訊已經改進 Mac 分頁，見<a href="#pc-main-page">Mac 分頁同步更新</a>。二手 DDR4 EPYC 平台因為頻寬可能太慢，暫時不考慮。</li>
-      <li><strong>併進主頁。</strong>原本獨立的 <code>pc-build.html</code> 改成主頁上方的「自組 PC」分頁，id 都加上 <code>pc-</code> 前綴。</li>
+      <li><strong>建立分頁。</strong>評估 Qwen3.8-27B Q4_K_M 在這台（放得下，但 30K 首字 9–10 分鐘，不接 Claude Code），用跟 Mac 分頁同一條 DeepSWE 門檻加上速度篩候選：Agent 主選是 Inkling 2 Mini（等 oMLX 下一版的 M1 修正），現在就能用的是 Qwen3.6-35B-A3B oQ3.5e-mtp，Ornith-1.5-35B-A3B 一起 A/B。研究筆記在 <code>research_notes/2026-11-26 全面更新/m1pro_32gb.md</code>，資料蒐集交給 Claude subagent，主要數字自己用 HF API、gh 重查過。</li>
     </ul>
   </section>
 
-  <section id="pc-sources">
+  <section id="m1p-sources">
     <h2>來源</h2>
-    <p class="measure">研究日期為 2026-10-29，2026-10-31、2026-11-11、2026-11-19 更新。11/11 的價格是當天晚上在原價屋、PChome、露天、欣亞重查的，GitHub 的 issue、PR 狀態也是當天查的。11/19 再查一次：原價屋價格表的時間是 16:58，PChome、露天、欣亞和 GitHub 也是當天查的。信心標記：<span class="conf" data-c="c">已確認</span> 是官方、一手來源或通路頁面上的標價，<span class="conf" data-c="m">實測</span> 是公開的實測，<span class="conf" data-c="r">社群回報</span> 是社群自己公布的數字（這個分頁也用來標露天跨境賣家的標價），<span class="conf" data-c="e">推估</span> 是這個分頁自己換算的。Mac 售價 NT$805,400 是使用者提供的。</p>
+    <p class="measure">研究日期為 2026-11-26。GitHub 的 issue、PR 狀態和 HF 的檔案大小都是查閱當天的。機器規格是使用者提供的，GPU 核數和 macOS 版本還不確定。信心標記：<span class="conf" data-c="c">已確認</span> 是官方或一手來源，<span class="conf" data-c="m">實測</span> 是附完整條件的公開實測，<span class="conf" data-c="r">社群回報</span> 是社群自己公布、沒附完整條件的數字，<span class="conf" data-c="e">推估</span> 是這個分頁自己換算的。</p>
     <div class="source-list">
       <div>
-        <h3>台灣通路價格</h3>
+        <h3>模型與量化</h3>
         <ul>
-          <li><a href="https://www.coolpc.com.tw/evaluate.php" rel="noopener">原價屋估價表（RDIMM、顯卡含 INNO3D RTX5080 X3、Threadripper、電源、機殼、SSD；ASUS PRIME EVO 11/11 已下架）</a></li>
-          <li><a href="https://www.coolpc.com.tw/evaluate.php" rel="noopener">原價屋估價表（2026-11-19 16:58，5080 剩 2 款、WRX90E-SAGE SE）</a></li>
-          <li><a href="https://24h.pchome.com.tw/prod/DRAC4S-A900K19E7" rel="noopener">PChome：ADATA 64GB DDR5-5600 RDIMM</a></li>
-          <li><a href="https://24h.pchome.com.tw/prod/DRADGJ-A900IK56B" rel="noopener">PChome：INNO3D RTX 5080</a></li>
-          <li><a href="https://24h.pchome.com.tw/prod/DRADLA-A900IJQJ6" rel="noopener">PChome：MSI RTX 5080</a></li>
-          <li><a href="https://24h.pchome.com.tw/prod/DRADUA-1900KJBW5" rel="noopener">PChome：技嘉 RTX 5080＋X870 EAGLE 主機板組合</a></li>
-          <li><a href="https://24h.pchome.com.tw/prod/DRADUA-1900KJBX3" rel="noopener">PChome：技嘉 RTX 5080＋X870 EAGLE 主機板組合（另一組）</a></li>
-          <li><a href="https://24h.pchome.com.tw/prod/DRADUA-1900KN26K" rel="noopener">PChome：MSI RTX 5080 VENTUS＋MAG X870E TOMAHAWK（2026-11-19）</a></li>
-          <li><a href="https://24h.pchome.com.tw/prod/DRADKY-A900JPJTV" rel="noopener">PChome：ASUS ROG ASTRAL RTX 5090 組合包</a></li>
-          <li><a href="https://24h.pchome.com.tw/prod/DRADUX-A900KOTDD" rel="noopener">PChome：技嘉 AORUS RTX 5090 STEALTH ICE 組合包（2026-11-19）</a></li>
-          <li><a href="https://www.sinya.com.tw/prod/229338" rel="noopener">欣亞：MSI RTX 5080 COD MW4 EDITION OC</a></li>
-          <li><a href="https://www.sinya.com.tw/prod/228845" rel="noopener">欣亞：ZOTAC RTX 5080 SOLID CORE OC 20th（組裝價）</a></li>
-          <li><a href="https://www.sinya.com.tw/prod/229881" rel="noopener">欣亞：MSI RTX 5080 SUPRIM DRACO EPIC EDITION（2026-11-19）</a></li>
-          <li><a href="https://24h.pchome.com.tw/prod/DSBC1T-A900H8XI1" rel="noopener">PChome：Seasonic PRIME TX-1600</a></li>
-          <li><a href="https://24h.pchome.com.tw/prod/DSAZ2M-A900JN5U3" rel="noopener">PChome：ASUS Pro WS 2200W</a></li>
-          <li><a href="https://24h.pchome.com.tw/prod/DSBC1T-A900ICCQO" rel="noopener">PChome：Noctua NH-U14S TR5-SP6</a></li>
-          <li><a href="https://24h.pchome.com.tw/prod/DRAC0H-A900JFEVX" rel="noopener">PChome：Team T-CREATE EXPERT DDR5-6400 128GB</a></li>
-          <li><a href="https://24h.pchome.com.tw/prod/DSBE20-A900K1LWH" rel="noopener">PChome：Corsair HX1500i（11/11 暫停）</a></li>
-          <li><a href="https://24h.pchome.com.tw/prod/DSAZ1J-A900KCK8I" rel="noopener">PChome：Corsair HX1500i（另一個賣場）</a></li>
-          <li><a href="https://24h.pchome.com.tw/prod/DSAJ7K-A900FVKS9" rel="noopener">PChome：Supermicro H13SSL-N</a></li>
-          <li><a href="https://24h.pchome.com.tw/prod/DRAI77-A900J1OPH" rel="noopener">PChome：Threadripper PRO 9985WX</a></li>
-          <li><a href="https://24h.pchome.com.tw/prod/DRAI7F-A900KGRJA" rel="noopener">PChome：Xeon 654＋ASUS W890 組合</a></li>
-          <li><a href="https://www.ruten.com.tw/item/show?22637587508339" rel="noopener">露天：EPYC 9355</a></li>
-          <li><a href="https://www.ruten.com.tw/item/show?22623837691526" rel="noopener">露天：ASUS K14PA-U12</a></li>
-          <li><a href="https://www.ruten.com.tw/item/show?22636558651201" rel="noopener">露天：ASUS K14PA-U12（另一筆）</a></li>
-          <li><a href="https://www.ruten.com.tw/item/show?22544339634128" rel="noopener">露天：EPYC 9365</a></li>
-          <li><a href="https://www.ruten.com.tw/item/show?22544339427566" rel="noopener">露天：EPYC 9135</a></li>
-          <li><a href="https://www.ruten.com.tw/item/show?22642917943885" rel="noopener">露天：標明「戴爾鎖」的 EPYC</a></li>
-        </ul>
-      </div>
-      <div>
-        <h3>行情與新聞</h3>
-        <ul>
-          <li><a href="https://www.trendforce.com/price/dram/dram_spot" rel="noopener">TrendForce：DRAM 現貨價（11/19 查閱，RDIMM 模組表 11/09 更新）</a></li>
-          <li><a href="https://www.trendforce.com/presscenter/news/20261111-13303.html" rel="noopener">TrendForce：4Q26 PC DRAM 合約價季增 13–18%（2026-11-11）</a></li>
-          <li><a href="https://www.trendforce.com/presscenter/news/20260930-13258.html" rel="noopener">TrendForce：4Q26 記憶體合約價預估（2026-09-30）</a></li>
-          <li><a href="https://www.ftnn.com.tw/news/583257" rel="noopener">FTNN：RDIMM 現貨價（2026-09-30）</a></li>
-          <li><a href="https://www.digitimes.com.tw/tech/dt/n/shwnws.asp?id=0000770039_T1619QJ02WHH0RLRF1EUH" rel="noopener">DigiTimes：64GB RDIMM 現貨價（2026-10-01）</a></li>
-          <li><a href="https://www.blocktempo.com/taiwan-graphics-card-price-list-rtx-5090-doubles-nvidia-msrp/" rel="noopener">BlockTempo：台灣顯卡價格（2026-07-28）</a></li>
-          <li><a href="https://www.ettoday.net/news/20261016/3255554.htm" rel="noopener">ETtoday：RTX 5090 行情（2026-10-16）</a></li>
-          <li><a href="https://tech.udn.com/tech/story/123153/9830050" rel="noopener">聯合新聞網：NVIDIA 否認 5090 停產（2026-10-22）</a></li>
-          <li><a href="https://www.ettoday.net/news/20261102/3264917.htm" rel="noopener">ETtoday：顯卡 11/2 調價，RTX 5080 平均漲 14%（2026-11-02）</a></li>
-          <li><a href="https://www.ettoday.net/news/20261111/3269987.htm" rel="noopener">ETtoday：華強北 RTX 5080 回落、5090 產能吃緊（2026-11-11）</a></li>
-          <li><a href="https://www.tweaktown.com/news/109694/geforce-rtx-50-super-series-delayed-indefinitely-as-nvidia-informs-its-partners/index.html" rel="noopener">TweakTown：RTX 50 SUPER 無限期延後</a></li>
-          <li><a href="https://www.digitaltoday.co.kr/en/view/125288/nvidia-rtx-5080-super-launch-cancellation-24gb-memory-costs" rel="noopener">DigitalToday：RTX 5080 Super 據報取消（2026-11-13）</a></li>
-        </ul>
-        <h3>平台規格</h3>
-        <ul>
-          <li><a href="https://chipsandcheese.com/p/amds-turin-5th-gen-epyc-launched" rel="noopener">Chips and Cheese：Turin（EPYC 9005）</a></li>
-          <li><a href="https://chipsandcheese.com/p/evaluating-uniform-memory-access" rel="noopener">Chips and Cheese：9355P 記憶體頻寬實測</a></li>
-          <li><a href="https://www.amd.com/content/dam/amd/en/documents/partner-hub/threadripper/ryzen-threadripper-pro-9000-series-qrg.pdf" rel="noopener">AMD：Threadripper PRO 9000 QRG</a></li>
-          <li><a href="https://www.amd.com/en/products/processors/desktops/ryzen/9000-series/amd-ryzen-9-9950x.html" rel="noopener">AMD：Ryzen 9 9950X 規格</a></li>
-          <li><a href="https://www.overclock.net/threads/4x64gb-frequencies-on-am5-9950x-x670e-proart.1816444/" rel="noopener">overclock.net：AM5 插 4×64GB 的速度</a></li>
-          <li><a href="https://www.heise.de/en/news/Xeon-600-New-workstation-processors-with-current-Intel-technology-11162834.html" rel="noopener">heise：Xeon 600 工作站處理器</a></li>
-          <li><a href="https://www.storagereview.com/news/amd-posts-the-full-epyc-9006-sku-list-31-venice-parts-from-700-to-14904-across-sp7-and-sp8" rel="noopener">StorageReview：EPYC 9006（SP7／SP8）</a></li>
-          <li><a href="https://tomshardware.com/pc-components/power-supplies/seasonics-new-power-supply-has-enough-juice-and-connectors-to-power-four-rtx-4090s" rel="noopener">Tom's Hardware：Seasonic PX-2200（230V 額定）</a></li>
-        </ul>
-      </div>
-      <div>
-        <h3>Runtime</h3>
-        <ul>
-          <li><a href="https://github.com/kvcache-ai/ktransformers/blob/main/doc/en/kt-kernel/GLM-5.3-Flash-Tutorial.md" rel="noopener">KTransformers：GLM-5.3-Flash 教學</a></li>
-          <li><a href="https://github.com/kvcache-ai/ktransformers/blob/main/kt-kernel/README.md" rel="noopener">KTransformers：kt-kernel README</a></li>
-          <li><a href="https://github.com/kvcache-ai/ktransformers/blob/main/doc/en/DeepSeek-V4-Flash.md" rel="noopener">KTransformers：DeepSeek-V4-Flash 文件</a></li>
-          <li><a href="https://github.com/kvcache-ai/ktransformers/blob/main/doc/en/kt-kernel/MiniMax-M3-Tutorial.md" rel="noopener">KTransformers：MiniMax-M3 教學</a></li>
-          <li><a href="https://github.com/kvcache-ai/ktransformers/releases" rel="noopener">KTransformers releases</a></li>
-          <li><a href="https://github.com/kvcache-ai/ktransformers/pull/2266" rel="noopener">KTransformers #2266：NVFP4 experts 的 SwiGLU 參數（MiniMax）</a></li>
-          <li><a href="https://github.com/05yuki/deepseek-v4.1-flash-1017-ktransformers/blob/main/docs/requirements.md" rel="noopener">05yuki：RAM 需求與 expert cache 規則</a></li>
-          <li><a href="https://github.com/ggml-org/llama.cpp/pull/31086" rel="noopener">llama.cpp #31086：DeepSeek V4.1 Flash</a></li>
-          <li><a href="https://github.com/ggml-org/llama.cpp/issues/30944" rel="noopener">llama.cpp #30944：重用 prompt cache 出現錯字（11/03 重開，11/14 全 GPU 驗證）</a></li>
-          <li><a href="https://github.com/ggml-org/llama.cpp/pull/31292" rel="noopener">llama.cpp #31292：#30944 的修正（11/03 合併）</a></li>
-          <li><a href="https://github.com/ggml-org/llama.cpp/releases/tag/v0.9.0" rel="noopener">llama.cpp v0.9.0（2026-11-04）</a></li>
-          <li><a href="https://github.com/ggml-org/llama.cpp/releases/tag/v1.0.0" rel="noopener">llama.cpp v1.0.0（2026-11-13）</a></li>
-          <li><a href="https://github.com/ggml-org/llama.cpp/pull/31192" rel="noopener">llama.cpp #31192：MiniMax M3.1 Flash（已關閉，由 #32301 取代）</a></li>
-          <li><a href="https://github.com/ggml-org/llama.cpp/pull/32301" rel="noopener">llama.cpp #32301：MiniMax-M3.1（2026-11-15 合併）</a></li>
-          <li><a href="https://github.com/ggml-org/llama.cpp/pull/30966" rel="noopener">llama.cpp #30966：MoE expert cache（2026-11-07）</a></li>
-          <li><a href="https://huggingface.co/unsloth/DeepSeek-V4.1-Flash-1017-GGUF/blob/main/engram/README.md" rel="noopener">Unsloth：DeepSeek Engram 表與 <code>--ple</code>（2026-11-15）</a></li>
-          <li><a href="https://github.com/ggml-org/llama.cpp/pull/29928" rel="noopener">llama.cpp #29928：GLM-5.3 MTP</a></li>
-          <li><a href="https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md" rel="noopener">llama.cpp server</a></li>
-          <li><a href="https://github.com/ikawrakow/ik_llama.cpp" rel="noopener">ik_llama.cpp</a></li>
-          <li><a href="https://github.com/ikawrakow/ik_llama.cpp/pull/2788" rel="noopener">ik_llama.cpp #2788：MiniMax M3.1（CPU）</a></li>
-          <li><a href="https://github.com/Niko1221/Strata/releases" rel="noopener">Strata releases</a></li>
-          <li><a href="https://github.com/Niko1221/Strata/blob/main/docs/DEEPSEEK41.md" rel="noopener">Strata：DeepSeek V4.1 Flash</a></li>
-          <li><a href="https://unsloth.ai/docs/models/deepseek-v4.1-flash" rel="noopener">Unsloth：DeepSeek V4.1 Flash</a></li>
-          <li><a href="https://unsloth.ai/docs/models/glm-5.3-flash" rel="noopener">Unsloth：GLM-5.3-Flash</a></li>
-          <li><a href="https://unsloth.ai/docs/models/qwen3.8-flash-next" rel="noopener">Unsloth：Qwen3.8-Flash-Next</a></li>
-          <li><a href="https://vllm.ai/blog/2026-10-23-minimax-m31-flash" rel="noopener">vLLM：MiniMax M3.1 Flash</a></li>
-          <li><a href="https://github.com/sgl-project/sglang/issues/46869" rel="noopener">SGLang #46869：MiniMax M3.1 Flash</a></li>
-          <li><a href="https://github.com/sgl-project/sglang/pull/45185" rel="noopener">SGLang #45185：V4.1-Flash-1017 的 FP8 step</a></li>
-          <li><a href="https://github.com/sgl-project/sglang/pull/49079" rel="noopener">SGLang #49079：KTransformers CPU experts 的 SwiGLU clamp（MiniMax）</a></li>
-          <li><a href="https://docs.sglang.io/docs/basic_usage/anthropic_api" rel="noopener">SGLang：Anthropic API</a></li>
-          <li><a href="https://www.mykolaaleksandrov.dev/posts/2026/06/claude-code-llamacpp-prompt-cache-fix/" rel="noopener">Mykola Aleksandrov：Claude Code 接 llama.cpp 的 prompt cache</a></li>
-          <li><a href="https://modelfit.io/blog/minimax-m3-1-flash-mac-memory-requirements/" rel="noopener">modelfit：MiniMax M3.1 Flash</a></li>
-          <li><a href="https://huggingface.co/AtomicChat/MiniMax-M3.1-Flash-GGUF" rel="noopener">AtomicChat：MiniMax M3.1 Flash GGUF</a></li>
+          <li><a href="https://huggingface.co/Qwen/Qwen3.8-27B" rel="noopener">Qwen/Qwen3.8-27B（model card、config、chat template）</a></li>
+          <li><a href="https://huggingface.co/mlx-community/Qwen3.8-27B-4bit" rel="noopener">mlx-community/Qwen3.8-27B-4bit</a></li>
+          <li><a href="https://huggingface.co/Jundot/Qwen3.8-27B-oQ4e-mtp" rel="noopener">Jundot/Qwen3.8-27B-oQ4e-mtp</a></li>
+          <li><a href="https://huggingface.co/Jundot/Qwen3.8-27B-oQ4h-mtp" rel="noopener">Jundot/Qwen3.8-27B-oQ4h-mtp（KL 表）</a></li>
+          <li><a href="https://huggingface.co/lmstudio-community/Qwen3.8-27B-GGUF" rel="noopener">lmstudio-community/Qwen3.8-27B-GGUF</a></li>
+          <li><a href="https://huggingface.co/unsloth/Qwen3.8-27B-GGUF" rel="noopener">unsloth/Qwen3.8-27B-GGUF</a></li>
+          <li><a href="https://huggingface.co/bartowski/Qwen3.8-27B-GGUF" rel="noopener">bartowski/Qwen3.8-27B-GGUF</a></li>
+          <li><a href="https://huggingface.co/thinkingmachines/Inkling-2-Mini" rel="noopener">thinkingmachines/Inkling-2-Mini</a></li>
+          <li><a href="https://huggingface.co/mlx-community/Inkling-2-Mini-oQ4e-mtp" rel="noopener">mlx-community/Inkling-2-Mini-oQ4e-mtp</a></li>
+          <li><a href="https://huggingface.co/Jundot/Qwen3.6-35B-A3B-oQ3.5e-mtp" rel="noopener">Jundot/Qwen3.6-35B-A3B-oQ3.5e-mtp</a></li>
+          <li><a href="https://huggingface.co/ornith-ai/Ornith-1.5-35B-A3B" rel="noopener">ornith-ai/Ornith-1.5-35B-A3B（含 Qwen3.6 的同表分數）</a></li>
+          <li><a href="https://huggingface.co/mlx-works/Ornith-1.5-35B-A3B-oQ3e-mtp" rel="noopener">mlx-works/Ornith-1.5-35B-A3B-oQ3e-mtp</a></li>
+          <li><a href="https://huggingface.co/KRAFTON/Raon-1-mini" rel="noopener">KRAFTON/Raon-1-mini（mini-SWE-agent 同表）</a></li>
+          <li><a href="https://huggingface.co/RecursiveSI/flint" rel="noopener">RecursiveSI/flint</a></li>
+          <li><a href="https://huggingface.co/openai/gpt-oss-20b" rel="noopener">openai/gpt-oss-20b</a></li>
+          <li><a href="https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16" rel="noopener">NVIDIA Nemotron 3.5 Lightning（NVIDIA 同表）</a></li>
+          <li><a href="https://huggingface.co/prism-ml/Ternary-Bonsai-2.5-27B-GGUF" rel="noopener">prism-ml/Ternary-Bonsai-2.5-27B-GGUF</a></li>
+          <li><a href="https://www.vals.ai/benchmarks/terminal-bench-4" rel="noopener">Vals：Terminal-Bench 4.0</a></li>
         </ul>
       </div>
       <div>
         <h3>實測</h3>
         <ul>
-          <li><a href="https://github.com/05yuki/deepseek-v4.1-flash-1017-ktransformers" rel="noopener">05yuki：DeepSeek 1017＋KTransformers，2× 5070 Ti</a></li>
-          <li><a href="https://github.com/05yuki/deepseek-v4.1-flash-1017-ktransformers/blob/main/reports/README.md" rel="noopener">05yuki：qualification 報告（tag 2026-11-14-1514）</a></li>
-          <li><a href="https://github.com/05yuki/deepseek-v4.1-flash-1017-ktransformers/pull/16" rel="noopener">05yuki #16：pool 填滿後 hot expert 不回來（2026-11-15）</a></li>
-          <li><a href="https://github.com/05yuki/deepseek-v4.1-flash-1017-ktransformers/issues/15" rel="noopener">05yuki #15：DSPARK 草稿模型（2026-11-15）</a></li>
-          <li><a href="https://github.com/ikawrakow/ik_llama.cpp/pull/2911" rel="noopener">ik_llama.cpp #2911：EPYC 9355 跑 DeepSeek 1017（2026-11-13）</a></li>
-          <li><a href="https://github.com/05yuki/deepseek-v4.1-flash-1017-ktransformers/issues/9" rel="noopener">05yuki #9：prefix cache 的多 session 測試</a></li>
-          <li><a href="https://github.com/05yuki/deepseek-v4.1-flash-1017-ktransformers/issues/10" rel="noopener">05yuki #10：單 socket TR PRO 3975WX＋RTX 5060 Ti，512 token 的固定 prefill 成本</a></li>
-          <li><a href="https://github.com/05yuki/deepseek-v4.1-flash-1017-ktransformers/issues/14" rel="noopener">05yuki #14：雙 Xeon（AVX-512）＋RTX 4090</a></li>
-          <li><a href="https://github.com/05yuki/deepseek-v4.1-flash-1017-gguf-ktransformers" rel="noopener">05yuki：DeepSeek 1017 GGUF（2-bit）</a></li>
-          <li><a href="https://github.com/howl9003/deepseek-v4.1-flash-1017-ktransformers" rel="noopener">howl9003：DeepSeek 1017＋KTransformers（要約 420 GiB）</a></li>
-          <li><a href="https://github.com/f-wunderlich/dsv41-flash-dual-epyc" rel="noopener">f-wunderlich：DeepSeek 1017，雙 EPYC</a></li>
-          <li><a href="https://github.com/DominikBucko/glm53-flash-2x3090" rel="noopener">DominikBucko：GLM-5.3-Flash，2× 3090</a></li>
-          <li><a href="https://github.com/adrienbrault/glm5.3-flash-2x-rtx5090" rel="noopener">adrienbrault：GLM-5.3-Flash，2× 5090</a></li>
-          <li><a href="https://github.com/Indras-Mirror/Xolotl/issues/62" rel="noopener">Xolotl #62：MiniMax M3.1，EPYC 9654＋5090</a></li>
-          <li><a href="https://huggingface.co/QuantPasture/Kimi-K2.5-GGUF/discussions/5" rel="noopener">QuantPasture：Kimi-K2.5，EPYC 9355＋5090</a></li>
-          <li><a href="https://github.com/sybil-solutions/local-ai-registry/pull/296" rel="noopener">local-ai-registry #296：Qwen3.8，RTX 5080</a></li>
-          <li><a href="https://github.com/Niko1221/Strata/issues/5733" rel="noopener">Strata #5733：Qwen3.8 UD-Q4_K_XL，RTX 5080</a></li>
-          <li><a href="https://github.com/Niko1221/Strata/issues/5534" rel="noopener">Strata #5534：Qwen3.8，4× RTX 5080 的 conversation cache</a></li>
-          <li><a href="https://github.com/Niko1221/Strata/issues/5773" rel="noopener">Strata #5773：DeepSeek 2-bit 級，RTX 5080</a></li>
-          <li><a href="https://www.datacamp.com/tutorial/ktransformers-tutorial" rel="noopener">DataCamp：KTransformers 教學（GLM-5.3 FP8，2× RTX PRO 6000）</a></li>
-          <li><a href="https://github.com/yhfgyyf/strata-deepseek-v4.1-flash" rel="noopener">yhfgyyf：Strata DeepSeek（PCIe 5.0 頻寬）</a></li>
-          <li><a href="https://github.com/ddalcu/mlx-serve/issues/904" rel="noopener">mlx-serve #904：DeepSeek 在 M5 Ultra 的實測</a></li>
-          <li><a href="https://github.com/jundot/omlx/pull/4993" rel="noopener">oMLX #4993：DeepSeek 在 M5 Ultra 256GB 的 prefill（開 CED）</a></li>
-          <li><a href="https://github.com/jundot/omlx/pull/5031" rel="noopener">oMLX #5031：prefill buffer pool，M5 Ultra 256GB 約 3,700</a></li>
-          <li><a href="https://github.com/jundot/omlx/releases/tag/v0.8.1" rel="noopener">oMLX v0.8.1：CUDA helper 0.1.7（2026-11-21）</a></li>
-          <li><a href="https://github.com/jundot/omlx/pull/5396" rel="noopener">oMLX #5396：helper 的 GDN conv window 記憶體修正</a></li>
-          <li><a href="https://github.com/jundot/omlx/releases/tag/v0.8.0" rel="noopener">oMLX v0.8.0：Prefill Accelerator（2026-11-18）</a></li>
-          <li><a href="https://github.com/jundot/omlx/blob/v0.8.0/docs/experimental/prefill-accelerator.md" rel="noopener">oMLX：prefill-accelerator.md（v0.8.0）</a></li>
-          <li><a href="https://github.com/jundot/omlx/blob/v0.8.0/apps/omlx-cuda-helper/README.md" rel="noopener">oMLX：CUDA helper README（v0.8.0）</a></li>
-          <li><a href="https://omlx.ai/benchmarks/performance/qkplej9w" rel="noopener">omlx.ai：DeepSeek oQ4e-mtp 在 M5 Ultra 512GB（社群上傳）</a></li>
-          <li><a href="https://omlx.ai/benchmarks/performance/v6ci8az1" rel="noopener">omlx.ai：GLM-5.3 oQ4e-mtp 在 M5 Ultra 512GB（社群上傳）</a></li>
-          <li><a href="https://github.com/ggml-org/llama.cpp/pull/31615" rel="noopener">llama.cpp #31615：DeepSeek 在 M5 Ultra 的 pp2048</a></li>
-          <li><a href="https://github.com/ashhart/TensorFold#pick-a-model" rel="noopener">TensorFold README：各模型的硬體範圍、CUDA 要整個放進顯存</a></li>
-          <li><a href="https://github.com/ashhart/TensorFold/pull/1441" rel="noopener">TensorFold #1441：Flash Next EXL3 expert offload（未合併）</a></li>
-          <li><a href="https://github.com/BobClawblaw/qwen38-27b-vision-rtx-5090" rel="noopener">BobClawblaw：Qwen3.8-27B 在 RTX 5090 上的 TensorFold 單 stream 數字</a></li>
-          <li><a href="https://x.com/satellitedown/status/2120574539381756375" rel="noopener">satellitedown：「1,600 tok/s」是 8 條 lane 加總（Cinference，11/11）</a></li>
-          <li><a href="https://x.com/ToolBraidComp/status/2120580898596778202" rel="noopener">ToolBraidComp：TensorFold fanout 8 條 lane（11/11）</a></li>
+          <li><a href="https://omlx.ai/benchmarks?chip=M1&amp;device=%5B%22M1%22%2C%22Pro%22%5D&amp;model=Qwen3.8-27B" rel="noopener">omlx.ai：M1 Pro 跑 Qwen3.8-27B</a></li>
+          <li><a href="https://omlx.ai/benchmarks?chip=M1&amp;device=%5B%22M1%22%2C%22Pro%22%5D&amp;model=Qwen3.6-35B" rel="noopener">omlx.ai：M1 Pro 跑 Qwen3.6-35B-A3B</a></li>
+          <li><a href="https://omlx.ai/benchmarks?chip=M1&amp;device=%5B%22M1%22%2C%22Pro%22%5D&amp;model=Inkling" rel="noopener">omlx.ai：M1 Pro 跑 Inkling 2 Mini</a></li>
+          <li><a href="https://omlx.ai/benchmarks?chip=M1&amp;device=%5B%22M1%22%2C%22Pro%22%5D&amp;model=gpt-oss-20b" rel="noopener">omlx.ai：M1 Pro 跑 GPT-OSS-20B</a></li>
+          <li><a href="https://omlx.ai/benchmarks/vxcngapw" rel="noopener">omlx.ai：M1 Pro 跑 Qwen3.6-27B oQ4-fp16-mtp</a></li>
+          <li><a href="https://github.com/ggml-org/llama.cpp/discussions/4167" rel="noopener">llama.cpp #4167：Apple Silicon 的速度表</a></li>
+          <li><a href="https://github.com/ggml-org/llama.cpp/issues/32316" rel="noopener">llama.cpp #32316：M1 Max 上 Qwen3.8-27B 每輪重算</a></li>
+          <li><a href="https://github.com/jundot/omlx/issues/1097" rel="noopener">oMLX #1097：M1 上 Qwen3.6-27B 的長 context</a></li>
+          <li><a href="https://forum.level1techs.com/t/sanity-check-my-qwen3-8-5090-results-new-to-local-ai/254299" rel="noopener">Level1Techs：Qwen3.8-27B 在 RTX 5090</a></li>
+          <li><a href="https://huggingface.co/byteshape/Qwen3.8-27B-GGUF" rel="noopener">byteshape：Qwen3.8-27B 在 RTX 5090 的 decode</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Runtime 與平台</h3>
+        <ul>
+          <li><a href="https://github.com/jundot/omlx/releases/tag/v0.8.3" rel="noopener">oMLX 0.8.3 release notes（11/22）</a></li>
+          <li><a href="https://github.com/jundot/omlx/issues/5570" rel="noopener">oMLX #5570：Inkling 2 Mini 在 M1 上超過 threadgroup 上限（11/25 修正）</a></li>
+          <li><a href="https://github.com/jundot/omlx/pull/5526" rel="noopener">oMLX #5526：M1、M2 的 Float16 Activations</a></li>
+          <li><a href="https://github.com/jundot/omlx/issues/5227" rel="noopener">oMLX #5227：M1 的 MTP verify 成本</a></li>
+          <li><a href="https://github.com/jundot/omlx/issues/4784" rel="noopener">oMLX #4784：Flint 在 fp16 出 NaN</a></li>
+          <li><a href="https://github.com/jundot/omlx/issues/5539" rel="noopener">oMLX #5539：Inkling 2 Mini 長時間 agent 的記憶體增長</a></li>
+          <li><a href="https://github.com/jundot/omlx/pull/5342" rel="noopener">oMLX #5342：Claude Code 的 WebSearch 接本機模型</a></li>
+          <li><a href="https://github.com/ml-explore/mlx-lm/issues/858" rel="noopener">mlx-lm #858：M1 沒有原生 bf16</a></li>
+          <li><a href="https://github.com/ggml-org/llama.cpp/pull/32801" rel="noopener">llama.cpp PR #32801：M1 Pro 32GB 的可用記憶體與 kernel panic</a></li>
+          <li><a href="https://github.com/ggml-org/llama.cpp/issues/24055" rel="noopener">llama.cpp #24055：hybrid 模型的 prefix cache</a></li>
+          <li><a href="https://github.com/ggml-org/llama.cpp/issues/27367" rel="noopener">llama.cpp #27367：Qwen 模板的 system 訊息位置</a></li>
+          <li><a href="https://github.com/ggml-org/llama.cpp/issues/32966" rel="noopener">llama.cpp #32966：Inkling 2 Mini 呼叫沒宣告的工具</a></li>
+          <li><a href="https://github.com/ollama/ollama/issues/18856" rel="noopener">Ollama #18856：MLX runner 在 M1 Pro 32GB 上 panic</a></li>
+          <li><a href="https://github.com/ollama/ollama/issues/16992" rel="noopener">Ollama #16992：Ornith 的 tool call 解析</a></li>
+          <li><a href="https://github.com/anthropics/claude-code/releases/tag/v2.1.332" rel="noopener">Claude Code 2.1.332（11/25）</a></li>
+          <li><a href="https://code.claude.com/docs/en/llm-gateway" rel="noopener">Claude Code：LLM gateway</a></li>
         </ul>
       </div>
     </div>
@@ -1597,16 +1410,16 @@ ANTHROPIC_BASE_URL=http://127.0.0.1:8000 claude</code></pre>
   <main id="sff-main">
 
   <header id="sff-summary" class="hero">
-    <p class="hero-meta">整理於 2026 年 11 月 12 日，<time datetime="2026-11-19">11 月 19 日</time>更新。這個分頁評估手上那台 Windows 小機殼：Ryzen 5 3600X、16GB DDR4、RTX 3060 Ti 8GB。主機板只有兩個記憶體插槽，這頁以現有規格為準，不假設升級。它取代 10/26 的附錄頁 <code>windows-3060ti.html</code>。M5 Ultra 的規劃見 <a href="#mac">M5 Ultra 512GB 分頁</a></p>
+    <p class="hero-meta">整理於 2026 年 11 月 12 日，11 月 19 日、<time datetime="2026-11-26">11 月 26 日</time>更新。這個分頁評估手上那台 Windows 小機殼：Ryzen 5 3600X、16GB DDR4、RTX 3060 Ti 8GB。主機板只有兩個記憶體插槽，這頁以現有規格為準，不假設升級。它取代 10/26 的附錄頁 <code>windows-3060ti.html</code>。M5 Ultra 的規劃見 <a href="#mac">M5 Ultra 512GB 分頁</a></p>
     <h1>RTX 3060 Ti 小機殼<br>現有規格能做什麼</h1>
     <p class="lead">
-      這台撐不起 Claude Code 的主力後端，追蹤的四個大模型也都跑不實用。它能做兩件事。M5 Ultra 到貨前，用 llama.cpp 跑 <strong>Qwen3.6-35B-A3B</strong> 的 3-bit 版，當輕量的 coding agent 和 32K–64K 的文件問答：experts 大部分放在 RAM，推估 decode 20–26 tok/s、prefill 350–1,000 tok/s。到貨後改當 RAG 的批次前處理機，跑 OCR、文件解析和大量 embedding，把吃 GPU 的批次工作從 Mac 移走。限制同時卡在 16GB RAM 和 8GB 顯存，而且 3600X 沒有內顯，螢幕和 Windows 桌面還要從顯卡吃掉約 1GB。
+      這台撐不起 Claude Code 的主力後端，Mac 分頁追蹤的大模型也都跑不實用。它能做兩件事。M5 Ultra 到貨前，用 llama.cpp 跑 <strong>Qwen3.6-35B-A3B</strong> 的 3-bit 版，當輕量的 coding agent 和 32K–64K 的文件問答：experts 大部分放在 RAM，推估 decode 20–26 tok/s、prefill 350–1,000 tok/s。到貨後改當 RAG 的批次前處理機，跑 OCR、文件解析和大量 embedding，把吃 GPU 的批次工作從 Mac 移走。限制同時卡在 16GB RAM 和 8GB 顯存，而且 3600X 沒有內顯，螢幕和 Windows 桌面還要從顯卡吃掉約 1GB。
     </p>
 
     <dl class="decisions">
       <div><dt>到貨前</dt><dd>Qwen3.6-35B-A3B UD-IQ3_XXS（13.2GB），llama.cpp 的 Windows CUDA 版，<code>--n-cpu-moe</code> 約 30、context 32K–64K。要速度就改 Qwen3.5-9B Q4_K_M，整個放進顯卡，但 agent 能力差一大截</dd></div>
       <div><dt>到貨後</dt><dd>批次 OCR 和文件解析（PaddleOCR-VL-1.6、GLM-OCR、MinerU、Docling）、批次 embedding（Qwen3-Embedding-4B 或 8B）、rerank（Qwen3-Reranker-0.6B）。查詢時的單句 embedding 留在 Mac 上</dd></div>
-      <div><dt>不建議</dt><dd>Strata 跑 Qwen3.8-Flash-Next（推估 3–10 tok/s）、Strata 跑 Qwen3.6（同規格實測 OOM）、Qwen3.6／3.8 的 27B dense（6–8GB 的筆電卡實測 0.75–2.4 tok/s）、TensorFold（Windows 只能自己編，27B 放不進 8GB）、Betelgeuse（只支援 Linux 和 12GB 卡，context 512，DeepSeek 的 routing 被改過）</dd></div>
+      <div><dt>不建議</dt><dd>Strata 跑 Qwen3.8-Flash-Next（推估 3–10 tok/s）、Strata 跑 Qwen3.6（同規格只到 16K、要量化 KV，更長就 OOM）、Qwen3.6／3.8 的 27B dense（6–8GB 的筆電卡實測 0.75–2.4 tok/s）、TensorFold（Windows 的 CUDA build 11/25 起又編得過，但仍沒有打包版；27B 放不進 8GB）、Betelgeuse（只支援 Linux 和 12GB 卡，context 512，DeepSeek 的 routing 被改過）</dd></div>
       <div><dt>接 Claude Code</dt><dd>Qwen3.x 的官方 chat template 遇到 Claude Code 中途插入的 system 訊息會讓 server 回 500，到 11/19 上游仍沒修，要換修過的模板。Claude Code 2.1.323 起把不認得的模型 ID 當成 1M context，要設 <code>CLAUDE_CODE_MAX_CONTEXT_TOKENS</code> 等於 server 的 <code>-c</code>，否則塞滿 64K 後每輪都失敗。hybrid 模型的 prefix cache 在 llama.cpp 上還很脆（修正 PR #25592 還沒合併）。第一輪就有 21K–40K token，冷 prefill 要等 21 秒到約 2 分鐘</dd></div>
       <div><dt>精度</dt><dd>3-bit 是這台的妥協，沒有公開的 KLD。同樣 3060 Ti 8GB 配 16GB RAM 的 Ubuntu server 有人日常用 llama.cpp 跑 UD-Q4_K_XL（22.4GB）128K，但沒附速度；在 Windows 上試，要接受部分 experts 從 SSD 讀</dd></div>
       <div><dt>還要確認</dt><dd>SSD 是不是 NVMe、主機板晶片組（決定顯卡槽是 PCIe 3.0 還是 4.0）、RAM 速度、SFX 電源瓦數、Windows 10 還是 11（NVIDIA 11 月起的新驅動只支援 Windows 11）、網卡速度</dd></div>
@@ -1641,7 +1454,7 @@ ANTHROPIC_BASE_URL=http://127.0.0.1:8000 claude</code></pre>
 
   <section id="sff-models">
     <h2>能跑的模型</h2>
-    <p class="measure">追蹤的四個模型裡，只有 Qwen3.8-Flash-Next 勉強跑得起來，也不實用。這台真正能用的是 30B 級的小 MoE：每個 token 只用 3B 參數，experts 放 RAM 由 CPU 算，顯卡放 attention、KV 和一部分 experts。</p>
+    <p class="measure">Mac 分頁追蹤過的大模型裡，只有 Qwen3.8-Flash-Next（11/26 已移出主力）勉強跑得起來，也不實用。這台真正能用的是 30B 級的小 MoE：每個 token 只用 3B 參數，experts 放 RAM 由 CPU 算，顯卡放 attention、KV 和一部分 experts。</p>
     <div class="table-wrap">
       <table class="hybrid">
         <thead><tr><th scope="col">模型與量化</th><th scope="col">大小與放法</th><th scope="col">品質</th><th scope="col">速度（tok/s）</th><th scope="col">判斷</th></tr></thead>
@@ -1651,7 +1464,9 @@ ANTHROPIC_BASE_URL=http://127.0.0.1:8000 claude</code></pre>
           <tr><th scope="row">Qwen3.5-9B<br>Q4_K_M</th><td>5.68GB，整個放卡上。32K 的 q8_0 KV 約 0.5GB，64K 會很緊</td><td>BFCL-V4 66.1、LongBench v2 55.2（官方）；Terminal-Bench 2.1 約 21–30（衍生模型卡），比 Qwen3.6 低 15–23 分</td><td>decode 50–60、prefill 1,500–2,400 <span class="conf" data-c="e">推估</span></td><td><span class="verdict" data-v="alt">要速度的短任務</span></td></tr>
           <tr><th scope="row">SenseNova-Loop-9B<br>Q4（11/17）</th><td>社群 GGUF 4.97–5.63GB，整個放卡上；第 4–27 層各跑兩次，hybrid（每 4 層 1 層 full attention），q4_0 KV 開 100K 約 6.9GB 顯存。主線 llama.cpp 還不支援（#32588 在 11/19 才開），要用 fork</td><td>自報 Terminal-Bench 2.1 59.55（harness 沒寫），沒有 SWE-bench Verified；官方自己寫 coding 和 agent 任務不穩、工具定義多時會漏需求</td><td>RTX 4060 8GB（Windows、不接螢幕）實測 decode 25.9–28.3、prefill 702–964 <span class="conf" data-c="r">社群回報</span>；這台推估 decode 38–46 <span class="conf" data-c="e">推估</span></td><td><span class="verdict" data-v="watch">等 llama.cpp 支援</span></td></tr>
           <tr><th scope="row">Qwen3.8-Flash-Next<br>（Strata 0.2.13，Coder 或 Gyro-S）</th><td>experts 23GB 以上，幾乎都要從 SSD 讀。Windows 上 Strata 要留 8 GiB 的 RAM headroom，Linux 才有的 file tier 還沒進 Windows</td><td>追蹤的四個模型之一，但這台只能跑最小的兩種：Coder（IQ1_M，每層 experts 剪掉一半，中文會變弱）或 Gyro-S</td><td>decode 3–10、prompt 50–150，context 8K–32K <span class="conf" data-c="e">推估</span></td><td><span class="verdict" data-v="no">不實用</span></td></tr>
-          <tr><th scope="row">Qwen3.6-35B-A3B<br>（Strata）</th><td>Strata 的最小檔 22.9GB，setup 規劃 32GB RAM；Windows 上啟動前要有 18 GiB 可用 RAM</td><td>—</td><td>同樣 3060 Ti 配 16GB RAM 實測 OOM（#5285）<span class="conf" data-c="r">社群回報</span>。維護者 11/20 回覆：128K 本來就放不下（這個 engine 的 K/V 存 32-bit，每 token 約 45 KB）；16K 也起不來，是因為 hybrid expert 放法要多兩個 staging buffer，0.2.17 改成放不下時拿掉它們繼續啟動，長 prompt 會變慢，沒在 8GB 卡上測過。啟動前要 18 GiB 可用 RAM 這一條沒變</td><td><span class="verdict" data-v="no">跑不起來</span></td></tr>
+          <tr><th scope="row">Qwen3.6-35B-A3B<br>（Strata）</th><td>Strata 的最小檔 22.9GB，setup 規劃 32GB RAM；Windows 上啟動前要有 18 GiB 可用 RAM</td><td>—</td><td>同樣 3060 Ti 配 16GB RAM 實測 OOM（#5285）<span class="conf" data-c="r">社群回報</span>。11/23 回報者自己把 #5285 關掉：16K context 配合 KV cache 量化可以啟動，更長就 OOM，是設計如此（原本以為 llama.cpp 跑得動的 Strata 也跑得動，不成立）；沒給速度。Strata 最新是 0.2.21。維護者 11/20 的回覆：128K 本來就放不下（這個 engine 的 K/V 存 32-bit，每 token 約 45 KB）；16K 也起不來，是因為 hybrid expert 放法要多兩個 staging buffer，0.2.17 改成放不下時拿掉它們繼續啟動，長 prompt 會變慢，沒在 8GB 卡上測過。啟動前要 18 GiB 可用 RAM 這一條沒變</td><td><span class="verdict" data-v="no">只到 16K，不實用</span></td></tr>
+          <tr><th scope="row">Ternary Bonsai 2.5 27B<br>（11/24）</th><td>Qwen3.8-27B 的 ternary 版，1.76 bpw、5.93 GB，Apache-2.0。要用 PrismML 的 llama.cpp fork（有 Windows CUDA 12.4／13.3 的打包版），主線 b11556 起只能跑 Q2_0 版。KV 跟 Qwen3.8-27B 一樣每 token 64 KiB（f16），q8_0 的 16K 約 0.5 GiB。RTX 3080 10GB 加 <code>-np 1</code> 含桌面約 7.8 GB <span class="conf" data-c="r">社群回報</span>，這台扣掉桌面只剩約 6.8GB，要不接螢幕或把 context 縮到 8–16K <span class="conf" data-c="e">推估</span></td><td>廠商自報：SWE-bench Verified 75.6、Terminal-Bench 2.1 60.1、DeepSWE 27.0（FP16 原版是 80.6、70.8、30.1），工具呼叫五項平均 77.2。跟 Qwen3.6-35B-A3B 的 70.1 不是同一套 harness，也沒有獨立重現</td><td>RTX 4090 不開 MTP decode 112、pp2048 3,452 <span class="conf" data-c="r">社群回報</span>；3060 Ti 沒有數字。M4 Pro 上 prefill 約 126，dense 模型在小 GPU 上 prefill 一樣慢</td><td><span class="verdict" data-v="watch">值得試，等實測</span></td></tr>
+          <tr><th scope="row">Inkling 2 Mini<br>約 2-bit（drofn，11/22）</th><td>混合量化三個檔 6.62–7.32 GB（對應 64K／48K／32K context），全部放在卡上</td><td>KLD 0.086–0.130、top-1 88.6–90.6%，精度掉不少；原版 DeepSWE 48.2（官方）</td><td>RTX 4060 8GB（不接螢幕）、主線 llama.cpp b12622：32K–64K decode 49–53、prefill 136–213（26K–49K prompt）<span class="conf" data-c="r">社群回報</span>。這台要扣約 1GB 給桌面，要降一級檔或縮 context</td><td><span class="verdict" data-v="no">prefill 太慢</span><div class="note">只有 Qwen3.6 推估的三分之一以下，量化又只有 2-bit</div></td></tr>
           <tr><th scope="row">Qwen3.6-27B、Qwen3.8-27B<br>（dense）</th><td>IQ3_XXS 也放不進 8GB。dense 模型每個 token 都要讀全部權重，放在 RAM 的部分很慢</td><td>—</td><td>8GB 以下的筆電卡實測：3070 Laptop 8GB 跑 3.6-27B IQ4_XS 0.75；3060 Laptop 6GB 跑 3.8-27B IQ3_XXS 2.4 <span class="conf" data-c="m">實測</span></td><td><span class="verdict" data-v="no">太慢</span></td></tr>
           <tr><th scope="row">其他 30B 級 MoE</th><td>Nemotron 3.5 Lightning 30B-A3B 最小 Q4_0 就有 18.9GB；GPT-OSS-20B（11.5–12.1GB）和 GLM-4.7-Flash IQ3_XXS（12.9GB）放得下；Flint 40B-A2.5B 在 16GB RAM 下只能放 UD-Q2_K_XL（13.6GB），UD-IQ3_XXS 是 14.5GB</td><td>同一套 harness 的 SWE-bench Verified：Gemma 4 26B-A4B 57.4、Nemotron 51.6、GPT-OSS-20B 52.4，都比 Qwen3.6 低；Flint 自報 SWE-bench Verified 74.2、Terminal-Bench 2.1 54.9，跟 Qwen3.6 自報的 73.4 差不多，但 harness 不同，也沒有獨立重現，在這台只能用 2-bit</td><td>—</td><td><span class="verdict" data-v="no">比 Qwen3.6 差</span></td></tr>
           <tr><th scope="row">Gemma 4 12B、Granite 4.2 8B</th><td>Gemma 官方 QAT q4_0 是 6.98GB，扣掉桌面放不下；Granite Q4_K_M 5.35GB，但 KV 每 token 160 KiB，實際只開得到約 16K</td><td>Granite 自報 SWE-bench Verified 47.7</td><td>—</td><td><span class="verdict" data-v="no">放不下或 context 太短</span></td></tr>
@@ -1752,7 +1567,7 @@ ANTHROPIC_BASE_URL=http://127.0.0.1:8000 claude</code></pre>
       <li><strong>第三方回報都是 Qwen、context 512。</strong>RTX 3090 24GB 在 WSL2 上 decode 12.6–12.7、prefill 15–18 tok/s，顯存用掉 16.9 GB；原生 Ubuntu 第一次 8.02、之後 17.11–21.19 <span class="conf" data-c="m">實測</span>。RTX 5060 Ti 在 WSL2 上開 64K context、送約 6,000 token 的 prompt，prefill 只有 2.2 tok/s，約 4 分鐘後 Windows 藍屏（<code>DPC_WATCHDOG_VIOLATION</code>，NVIDIA 驅動），關掉它常駐的 polling kernel 輸出就變亂碼 <span class="conf" data-c="r">社群回報</span>。作者說在做 v0.6.1（Ada、Blackwell 原生支援和 MTP），還沒有時程。</li>
       <li><strong>放到這台。</strong>3060 Ti 也是 sm_86，但只有 8GB：DeepSeek 的設定顯存峰值 11.1 GiB，Qwen 的 5,000 個 slot 約 7.2 GB 加上 dense 3.77 GB 也放不下，要砍 slot，速度會再掉 <span class="conf" data-c="e">推估</span>。這台是 Windows，原生編不過，WSL2 有上面的藍屏回報。context 512 連 Claude Code 的第一輪（21K–40K token）都裝不下；就算放寬，15–60 tok/s 的 prefill 讀 40K 也要 11–45 分鐘。現在推薦的 llama.cpp 跑 Qwen3.6-35B-A3B 有 32K–64K context、Anthropic API 和 prompt cache，實用得多。</li>
     </ul>
-    <p class="note">Mac 用不上（只有 CUDA）。自組 PC 的配置 A 有 384GB RAM，不需要從 SSD 讀 experts，RTX 5080 的 sm_120 在 main 上也還編不過（#2）。研究筆記在 <code>research_notes/2026-11-19 全面更新/betelgeuse.md</code>。</p>
+    <p class="note">Mac 用不上（只有 CUDA）。研究筆記在 <code>research_notes/2026-11-19 全面更新/betelgeuse.md</code>。</p>
   </section>
 
   <section id="sff-aux">
@@ -1770,7 +1585,7 @@ ANTHROPIC_BASE_URL=http://127.0.0.1:8000 claude</code></pre>
       </table>
     </div>
     <p class="note">推估的依據只有一筆 3060 Ti 實測：bge-m3（568M）用 bge-m3.c 的 CUDA fp16，batch 32×512 token 是每秒 93 條（約 47.6K tok/s），單條 8K 序列 358 ms <span class="conf" data-c="m">實測</span>。其他都是用 7B 的 prefill 按參數量換算，OCR 是用廠商在 RTX 5090 上的頁速、按 decode 慢約 3 倍、prefill 慢約 5 倍換算。沒有任何一個 OCR 或 embedding 模型專門測過繁體中文，要用自己的文件測。Open WebUI 可以把 embedding、外部 reranker 和內容擷取（docling、mineru、paddleocr_vl）分別指到這台。</p>
-    <p><strong>oMLX 的 Prefill Accelerator 用不上這台。</strong>oMLX 0.8.0（11/18）可以讓一台 NVIDIA PC 替 Mac 跑每個 prompt chunk 的前幾層，但 Mac 端的規劃程式碼每張卡先保留 8 GiB，3060 Ti 總共只有 8 GiB，會直接回「Not even one layer fits」。就算放寬，DeepSeek V4.1 Flash 一層約 6.5–8 GiB、GLM-5.3 Flash 一層約 4 GiB、Qwen3.8 Flash-Next 一層約 1.8 GiB，8GB 卡頂多放 1–2 層，prefill 快不到 5%。CUDA helper 在 Windows 上要走 Docker Desktop 的 WSL 2，官方也還沒測過；網路文件建議 5 GbE 以上，這台的網卡多半只有 1 或 2.5 GbE。這台維持做批次 embedding 和 OCR。</p>
+    <p><strong>oMLX 的 Prefill Accelerator 用不上這台。</strong>oMLX 0.8.0（11/18）可以讓一台 NVIDIA PC 替 Mac 跑每個 prompt chunk 的前幾層，但規劃程式碼每張卡先保留一段記憶體（0.8.0 是 Mac 端一律算 8 GiB，0.8.3 的 #5522 改用 CUDA helper 自己回報的 6 GiB），3060 Ti 總共只有 8 GiB，扣掉之後頂多放 1 層。就算放寬，DeepSeek V4.1 Flash 一層約 6.5–8 GiB、GLM-5.3 Flash 一層約 4 GiB、Qwen3.8 Flash-Next 一層約 1.8 GiB，8GB 卡頂多放 1–2 層，prefill 快不到 5%。CUDA helper 在 Windows 上要走 Docker Desktop 的 WSL 2，官方也還沒測過；網路文件建議 5 GbE 以上，這台的網卡多半只有 1 或 2.5 GbE。這台維持做批次 embedding 和 OCR。</p>
   </section>
 
   <section id="sff-setup">
@@ -1780,7 +1595,7 @@ ANTHROPIC_BASE_URL=http://127.0.0.1:8000 claude</code></pre>
       <li><strong>關掉 Sysmem Fallback。</strong>NVIDIA 控制面板 › 管理 3D 設定 › 程式設定，加入 <code>llama-server.exe</code>，把「CUDA - Sysmem Fallback Policy」改成「Prefer No Sysmem Fallback」。預設會在顯存用完時改用系統記憶體，超出約 100MB 就靜靜慢 3–6 倍；關掉之後溢位會直接 OOM，比較容易發現。<code>--fit</code> 只在載入時檢查，執行中溢位一樣會掉速。</li>
       <li><strong>騰出顯存和 RAM。</strong>能不接螢幕就不接，用 SSH 或遠端桌面管理；關掉瀏覽器和其他程式的硬體加速。pagefile 放在 NVMe 上，系統管理或固定 16–32GB，初始大小要夠大。載入方式用 <code>-lm</code>（<code>--no-mmap</code>、<code>--mlock</code> 已經拿掉了）。預設 <code>auto</code> 就是 mmap；<code>-lm dio</code> 在 Windows 上 11/09 起才真的不經過 file cache。llama-bench 時兩種都量：mmap 開機後的第一個請求可能很慢（6GB 卡在 Linux 上實測，冷 mmap 只有 0.035 tok/s），dio 只把 CPU 端約 8.7GB 的 experts 讀進 RAM，但那是私有記憶體，pagefile 要夠大。</li>
       <li><strong>裝 llama.cpp。</strong>從 GitHub release 下載 b12532 以後的 <code>win-cuda-12.4-x64</code> 或 <code>win-cuda-13.5-x64</code>（v1.0.0 之後；b12391 起含 Qwen3 的 tool call 修正），加上對應的 cudart zip，兩包都含 sm_86。</li>
-      <li><strong>用 llama-bench 掃參數。</strong>下載 Unsloth 的 UD-IQ3_XXS，從 <code>--n-cpu-moe 34</code> 往下掃，找到不溢位的最小值，再試 <code>-ub</code> 512、1024、2048。量 4K、32K、64K 的 prefill 和 decode，把數字填回這頁。也試一組「experts 全放 CPU（<code>--n-cpu-moe 99</code>）加 <code>--moe-cache-mib 2500 --moe-cache-cpu-share 0.95</code>」，跟固定 <code>--n-cpu-moe 30</code> 比 decode；<code>scripts/moe-cache-tune.py</code> 在 Windows 上會當掉（#32041），要手動掃。</li>
+      <li><strong>用 llama-bench 掃參數。</strong>下載 Unsloth 的 UD-IQ3_XXS，從 <code>--n-cpu-moe 34</code> 往下掃，找到不溢位的最小值，再試 <code>-ub</code> 512、1024、2048。量 4K、32K、64K 的 prefill 和 decode，把數字填回這頁。也試一組「experts 全放 CPU（<code>--n-cpu-moe 99</code>）加 <code>--moe-cache-mib 2500 --moe-cache-cpu-share 0.95</code>」，跟固定 <code>--n-cpu-moe 30</code> 比 decode；<code>scripts/moe-cache-tune.py</code> 在 Windows 上會當掉（#32041），11/25 由 #32080 修好，但 11/26 最新的 b12728 還不含這個 commit；等下一個 b-build，之前先手動掃。</li>
       <li><strong>起 server。</strong><code>llama-server -m Qwen3.6-35B-A3B-UD-IQ3_XXS.gguf --alias qwen3.6-35b-a3b --host 0.0.0.0 --port 8080 --api-key &lt;自訂&gt; -ngl 99 --n-cpu-moe 30 -c 65536 -ctk q8_0 -ctv q8_0 -np 1 -b 2048 -ub 2048 --ctx-checkpoints 12 --cache-ram 2048 --chat-template-file &lt;修過的 Qwen 模板&gt;</code>。預設只聽 127.0.0.1，不加 <code>--host</code> 的話 Mac 連不進來；Windows 防火牆要開 8080。<code>-np 1</code> 很重要，預設的多個 slot 會把 KV 乘好幾倍。先從終端機手動啟動：Windows 會降低 Task Scheduler 和服務啟動的程式的磁碟優先權，Strata 實測讀模型因此慢約 15 倍。</li>
       <li><strong>接 Claude Code。</strong>Claude Code 跑在 Mac 上：<code>ANTHROPIC_BASE_URL=http://&lt;這台 IP&gt;:8080</code>、<code>ANTHROPIC_AUTH_TOKEN=&lt;上面的 key&gt;</code>、<code>ANTHROPIC_MODEL=qwen3.6-35b-a3b</code>、<code>CLAUDE_CODE_MAX_CONTEXT_TOKENS=65536</code>、<code>CLAUDE_CODE_ATTRIBUTION_HEADER=0</code>。背景請求也要指到同一個 ID（<code>ANTHROPIC_DEFAULT_HAIKU_MODEL</code>），否則會送出 Claude 的模型名稱。先用單檔修改的小任務測模板和工具呼叫。</li>
       <li><strong>顧散熱。</strong>長 prefill 和批次 OCR 都是滿載工作。整機峰值約 330–360W，SFX 電源要 450W 以上。可以用 <code>nvidia-smi -pl 170</code>（約 85%）換溫度，decode 幾乎不受影響：RTX 3090 從 350W 降到 250W，速度只從 32.0 變 31.7 tok/s，prefill 會慢一些。這個指令要系統管理員權限，重開機後會還原。</li>
@@ -1804,6 +1619,13 @@ ANTHROPIC_BASE_URL=http://127.0.0.1:8000 claude</code></pre>
 
   <section id="sff-changelog">
     <h2>更新紀錄</h2>
+    <h3>2026-11-26</h3>
+    <ul class="plain">
+      <li><strong>新增 Ternary Bonsai 2.5 27B 一列。</strong>Qwen3.8-27B 壓成 1.76 bpw 的 5.93 GB，放得進 8GB 卡，廠商自報 SWE-bench Verified 75.6、DeepSWE 27.0。要用 PrismML 的 llama.cpp fork（有 Windows CUDA 打包版），這台沒有數字，分數也沒有獨立重現，列「值得試」。推薦仍是 Qwen3.6-35B-A3B UD-IQ3_XXS。</li>
+      <li><strong>Inkling 2 Mini 有 8GB 卡的實測了。</strong>約 2-bit 的檔在 RTX 4060 8GB 上 decode 49–53，但 26K–49K 的 prefill 只有 136–213，量化又只有 2-bit，不換。它在 32GB Mac 上的評估見 <a href="#m1p">M1 Pro 32GB 分頁</a>。</li>
+      <li><strong>Strata #5285 關閉。</strong>回報者確認 Qwen3.6 在這個規格只能開 16K（要量化 KV），更長 OOM 是設計如此，判斷從「跑不起來」改成「只到 16K，不實用」。Strata 最新 0.2.21。</li>
+      <li><strong>其他。</strong>llama.cpp 的 <code>moe-cache-tune.py</code> Windows 當掉（#32041）11/25 由 #32080 修好，還沒進 b-build；TensorFold 的 Windows CUDA build 重新編得過（#4171），仍沒有打包版；oMLX 0.8.3 的 Prefill Accelerator 改用 helper 自己回報的 6 GiB 保留（#5522），這台仍頂多放 1 層。Claude Code 2.1.331、2.1.332 沒改三個追蹤的設定。Mac 分頁的候選 11/26 改成過 benchmark 門檻的 DeepSeek 和 MiniMax，這台的「不實用」判斷不變。研究筆記在 <code>research_notes/2026-11-26 全面更新/tools_sweep.md</code>。</li>
+    </ul>
     <h3>2026-11-21</h3>
     <ul class="plain">
       <li><strong>Strata 0.2.17、TensorFold 1.3.2、oMLX 0.8.1。</strong>Strata #5285 維護者回覆了：128K 本來就放不下，16K 起不來的原因在 0.2.17 部分處理掉（放不下時不用 staging buffer），但沒在 8GB 卡上測過；啟動前要 18 GiB 可用 RAM 的問題還在，這台仍是「跑不起來」。Strata 也還沒把 file tier 搬到 Windows。TensorFold 1.3.2 仍沒有 Windows 打包版，fanout 也還沒進 repo。oMLX 0.8.1 沒改 Prefill Accelerator 每張卡 8 GiB 的保留。llama.cpp #24055、#30357、#25592 都沒動，#32588（SenseNova-Loop）還沒合併。Betelgeuse 仍是 v0.6.0。推薦不變。</li>
@@ -1829,11 +1651,16 @@ ANTHROPIC_BASE_URL=http://127.0.0.1:8000 claude</code></pre>
 
   <section id="sff-sources">
     <h2>來源</h2>
-    <p class="measure">研究日期為 2026-11-12，2026-11-19 更新。GitHub 的 issue、PR 狀態和 HF 的檔案大小都是查閱當天的。硬體規格是使用者提供的。信心標記：<span class="conf" data-c="c">已確認</span> 是官方或一手來源，<span class="conf" data-c="m">實測</span> 是附完整條件的公開實測，<span class="conf" data-c="r">社群回報</span> 是社群自己公布、沒附完整條件的數字，<span class="conf" data-c="e">推估</span> 是這個分頁自己換算的。</p>
+    <p class="measure">研究日期為 2026-11-12，2026-11-19、2026-11-26 更新。GitHub 的 issue、PR 狀態和 HF 的檔案大小都是查閱當天的。硬體規格是使用者提供的。信心標記：<span class="conf" data-c="c">已確認</span> 是官方或一手來源，<span class="conf" data-c="m">實測</span> 是附完整條件的公開實測，<span class="conf" data-c="r">社群回報</span> 是社群自己公布、沒附完整條件的數字，<span class="conf" data-c="e">推估</span> 是這個分頁自己換算的。</p>
     <div class="source-list">
       <div>
         <h3>模型</h3>
         <ul>
+          <li><a href="https://huggingface.co/prism-ml/Ternary-Bonsai-2.5-27B-GGUF" rel="noopener">prism-ml/Ternary-Bonsai-2.5-27B-GGUF（11/24）</a></li>
+          <li><a href="https://github.com/PrismML-Eng/llama.cpp/releases" rel="noopener">PrismML 的 llama.cpp fork（Windows CUDA 打包版）</a></li>
+          <li><a href="https://huggingface.co/drofn/Inkling-2-Mini-8GB-GGUF" rel="noopener">drofn/Inkling-2-Mini-8GB-GGUF（RTX 4060 8GB 實測）</a></li>
+          <li><a href="https://github.com/Niko1221/Strata/issues/5285" rel="noopener">Strata #5285（11/23 關閉）</a></li>
+          <li><a href="https://github.com/ggml-org/llama.cpp/pull/32080" rel="noopener">llama.cpp #32080：moe-cache-tune.py 的 Windows 修正（11/25）</a></li>
           <li><a href="https://huggingface.co/Qwen/Qwen3.6-35B-A3B" rel="noopener">Qwen3.6-35B-A3B model card</a></li>
           <li><a href="https://huggingface.co/unsloth/Qwen3.6-35B-A3B-GGUF" rel="noopener">unsloth/Qwen3.6-35B-A3B-GGUF（檔案大小）</a></li>
           <li><a href="https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16" rel="noopener">Nemotron 3.5 Lightning model card（同一套 harness 的對照表）</a></li>
