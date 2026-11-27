@@ -436,10 +436,16 @@
     })), state.quant, (v) => { state.quant = v; renderPlanner(); }, true);
     radioGroup(document.getElementById('p-ctx'), 'ctx', m.ctxOptions.map((c) => ({ value: c.tokens, label: c.label })), state.ctx, (v) => { state.ctx = Number(v); renderPlanner(); });
     radioGroup(document.getElementById('p-kv'), 'kv', [{ value: 'bf16', label: 'BF16' }, { value: 'q8', label: '8-bit' }], state.kv, (v) => { state.kv = v; renderPlanner(); });
-    radioGroup(document.getElementById('p-wired'), 'wired', [
-      { value: P.hardware.wiredRaisedGiB, label: '建議 ' + P.hardware.wiredRaisedGiB + ' GiB' },
-      { value: P.hardware.wiredDefaultGiB, label: '預設 ' + P.hardware.wiredDefaultGiB + ' GiB' },
-    ], state.wired, (v) => { state.wired = Number(v); renderPlanner(); });
+    const wiredOpts = P.hardware.wiredRaisedGiB === P.hardware.wiredDefaultGiB
+      ? [
+          { value: P.hardware.wiredRaisedGiB, label: '建議／預設 ' + P.hardware.wiredRaisedGiB + ' GiB' },
+          { value: Math.round(P.hardware.ramGiB * 0.75), label: '保守 75%（' + Math.round(P.hardware.ramGiB * 0.75) + ' GiB）' },
+        ]
+      : [
+          { value: P.hardware.wiredRaisedGiB, label: '建議 ' + P.hardware.wiredRaisedGiB + ' GiB' },
+          { value: P.hardware.wiredDefaultGiB, label: '預設 ' + P.hardware.wiredDefaultGiB + ' GiB' },
+        ];
+    radioGroup(document.getElementById('p-wired'), 'wired', wiredOpts, state.wired, (v) => { state.wired = Number(v); renderPlanner(); });
   }
 
   function renderPlanner() {
@@ -469,9 +475,8 @@
 
     const notes = ['精度：' + q.quality + '。Runtime：' + q.runtime + '。'];
     if (q.decode.note) notes.push('Decode：' + q.decode.note + '。');
-    if (state.kv === 'q8' && m.id === 'mm') notes.push('還沒有 Mac runtime 確認能把 MiniMax M3.1 的 KV 存成 8-bit：llama.cpp 還不支援 M3.1，oMLX 0.7.1 的 Affine8 KV 能不能用在 MSA 層還沒有人測過。');
+    if (state.kv === 'q8' && m.id === 'mm') notes.push('還沒有 Mac runtime 確認能把 MiniMax M3.1 的 KV 存成 8-bit：llama.cpp 主線已支援 M3.1（#32301）並補上 Metal NVFP4（#32825），但還沒人在 Metal 上實測；oMLX 的 Affine8 KV 能不能用在 MSA 層也還沒有人測過。');
     if (state.kv === 'q8' && m.id !== 'mm') notes.push('這個模型的 KV 本來就小，量化 KV 省不了多少，還可能讓某些 server 退回較慢的 attention。');
-    if (m.id === 'qwen' && state.ctx > m.ctx) notes.push('超過 262K 要開 YaRN，短 prompt 的品質可能變差。');
     if (state.ctx > BENCH_CTX && q.prefill.conf === 'm') notes.push('Prefill 實測是在 256K 量的，更長的 context 可能更慢。');
     if (m.status === 'pending') notes.push('這個模型的權重還沒釋出，數字是用前一代的架構估算的。');
     document.getElementById('p-notes').textContent = notes.join(' ');
