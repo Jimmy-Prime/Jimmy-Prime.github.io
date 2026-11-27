@@ -536,6 +536,8 @@ td.c { color: var(--ink-2); }
 .cols h3:first-child { margin-top: 8px; }
 ul.plain, ol.principles, ul.risks { padding-left: 1.2em; margin: 0 0 14px; }
 ul.plain li, ol.principles li, ul.risks li { margin-bottom: 8px; }
+ul.plain li ul { padding-left: 1.2em; margin: 6px 0 4px; }
+ul.plain li ul li { margin-bottom: 4px; }
 ol.principles li::marker { font-weight: 650; }
 
 .clarify { display: grid; gap: 8px 48px; margin: 8px 0 20px; }
@@ -555,13 +557,15 @@ ol.principles li::marker { font-weight: 650; }
 
 /* 步驟：真的有先後順序，所以用編號 */
 ol.steps { list-style: none; counter-reset: step; padding: 0; margin: 0; max-width: 52em; }
-ol.steps li {
+ol.steps > li {
   counter-increment: step;
   position: relative;
   padding: 12px 0 12px 52px;
   border-bottom: 1px solid var(--rule);
 }
-ol.steps li::before {
+ol.steps li ul { padding-left: 1.2em; margin: 6px 0 8px; }
+ol.steps li ul li { margin-bottom: 4px; }
+ol.steps > li::before {
   content: counter(step);
   position: absolute;
   left: 0;

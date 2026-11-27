@@ -6,7 +6,7 @@
 // 信心標記 conf：'c' 已確認（官方或一手來源）、'm' 公開實測、'r' 社群或廠商回報、'e' 推估（自行換算）
 
 window.PLAN = {
-  updated: '2026-11-26',
+  updated: '2026-11-27',
 
   hardware: {
     ramGiB: 512,
@@ -496,6 +496,16 @@ window.PLAN = {
       ['haoruilee/DeepInfer-Mac', 'https://github.com/haoruilee/DeepInfer-Mac'],
       ['TechNode：DeepSeek 開源推理框架', 'https://technode.com/2026/10/21/deepseek-open-sources-inference-framework-with-support-for-nvidia-and-huawei-chips/'],
       ['DeepInfer #289：nv-dev 分支支援 RTX PRO 6000（SM120，11/18）', 'https://github.com/deepseek-ai/DeepInfer/pull/289'],
+    ]},
+    { group: '調設定（hill-climb）', items: [
+      ['sybil-solutions/inference-optimisation-skill（0xSero，11/16）', 'https://github.com/sybil-solutions/inference-optimisation-skill'],
+      ['inference-optimisation-skill #1：ceiling.py 的並發算錯、macOS 沒有 flock', 'https://github.com/sybil-solutions/inference-optimisation-skill/issues/1'],
+      ['inference-optimisation-skill #9：oMLX 上把壞掉的輸出算成 863k tok/s', 'https://github.com/sybil-solutions/inference-optimisation-skill/pull/9'],
+      ['inference-optimisation-skill #11：A/A 雜訊底線、prompt 長度偏短', 'https://github.com/sybil-solutions/inference-optimisation-skill/pull/11'],
+      ['inference-optimisation-skill #19：MTP draft 數依輸出類型而定（含重播 Claude Code 回合）', 'https://github.com/sybil-solutions/inference-optimisation-skill/pull/19'],
+      ['inference-optimisation-skill #23：M2 Max 跑 Inkling 2 Mini', 'https://github.com/sybil-solutions/inference-optimisation-skill/pull/23'],
+      ['LazyLocalLLM finding 32：M5 Ultra 512GB 用這個 skill 調 mlx-lm', 'https://github.com/LazyLocalLLM/m5-ultra-512-benchmarks/tree/main/findings/32_mlxlm_skill_qwen38_27b'],
+      ['Zpankz/inference-optimisation-macos（Mac 版 fork，沒人驗證過）', 'https://github.com/Zpankz/inference-optimisation-macos'],
     ]},
   ],
 };

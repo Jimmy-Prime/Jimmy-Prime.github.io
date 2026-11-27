@@ -57,7 +57,7 @@
   <main id="main">
 
   <header id="summary" class="hero">
-    <p class="hero-meta">資料整理於 2026 年 10 月 20 日，<time datetime="2026-11-26">11 月 26 日</time>更新。M5 Ultra 512GB 10 月 29 日才在台灣開放選配，訂單標 10–12 週，大約 2027 年 1 月到貨；台灣售價 NT$805,400（2TB SSD）。同樣預算的兩台 256GB 串聯見<a href="#duo">兩台 M5 Ultra 256GB 分頁</a>，公司的 M1 Pro 32GB 筆電能跑哪些小模型見 <a href="#m1p">M1 Pro 32GB 分頁</a>，手上那台 RTX 3060 Ti 小機殼能做什麼見<a href="#sff">3060 Ti 小機殼分頁</a>。同預算自組 PC 的分頁 11/26 移除</p>
+    <p class="hero-meta">資料整理於 2026 年 10 月 20 日，<time datetime="2026-11-27">11 月 27 日</time>更新。M5 Ultra 512GB 10 月 29 日才在台灣開放選配，訂單標 10–12 週，大約 2027 年 1 月到貨；台灣售價 NT$805,400（2TB SSD）。同樣預算的兩台 256GB 串聯見<a href="#duo">兩台 M5 Ultra 256GB 分頁</a>，公司的 M1 Pro 32GB 筆電能跑哪些小模型見 <a href="#m1p">M1 Pro 32GB 分頁</a>，手上那台 RTX 3060 Ti 小機殼能做什麼見<a href="#sff">3060 Ti 小機殼分頁</a>。同預算自組 PC 的分頁 11/26 移除</p>
     <h1>M5 Ultra 512GB<br>本機 LLM 規劃</h1>
     <p class="lead">
       Coding agent 和長文件分析最吃 prefill 跟 prompt cache。主力先用 <strong>DeepSeek V4.1 Flash 1017</strong>：experts 和 Engram 查表都維持官方精度不重新量化，Engram 放 SSD，用 oMLX 0.8.0 以上跑 DSpark，CED prefill 0.8.0 起預設開啟。這樣開到原生 1M context，RAM 內的模型也只佔約 290 GiB，還能留 64 GiB 給 prompt cache。512GB 的社群上傳（跟這頁的配置相同：CED 開、A8 關）到 11/25 已有十幾個 session，32K–195K 一直分成兩群：快的 3,525–4,060、慢的 3,009–3,335，正式版 0.8.0–0.8.3 兩群都有，原因不明，所以 prefill 取 3,000–4,050 tok/s。11/26 起主力候選先過一道 <a href="#gate">benchmark 門檻</a>（DeepSWE 自報 ≥ 70，第三方分數不能低於領先者的一半），只剩 DeepSeek 和 MiniMax M3.1 Flash；GLM-5.3-Flash、Qwen3.8-Flash-Next 移出主力，新的 Inkling 2 Small 放得下但第三方分數和 prefill 都太差，不列入。
@@ -124,7 +124,7 @@
     </div>
 
     <h3>速度怎麼估</h3>
-    <p class="measure">Decode 受頻寬限制：每產生一個 token 都要把 active 權重讀一遍，所以大約是「有效頻寬 ÷ 每 token 讀取量」。但大型 MoE 在 M5 Ultra 上的有效頻寬只有規格的 25–40%（GLM-5.3-Flash 18B active 只跑到 31–41 tok/s），用理論值會高估太多。所以這頁的推估是拿 M3 Ultra 的實測乘上上表的世代倍率；M5 Ultra 256GB 的實測直接沿用（頻寬一樣）。兩者對不上時取保守值，並在備註寫明。Prefill 受算力限制，bit 數影響很小（4-bit 到 8-bit 只差 0–14%）；decode 的話 8-bit 比 4-bit 慢約 20–25%。</p>
+    <p class="measure">Decode 受頻寬限制：每產生一個 token 都要把 active 權重讀一遍，所以大約是「有效頻寬 ÷ 每 token 讀取量」。但大型 MoE 在 M5 Ultra 上的有效頻寬只有規格的 25–40%（GLM-5.3-Flash 18B active 只跑到 31–41 tok/s），用理論值會高估太多。所以這頁的推估是拿 M3 Ultra 的實測乘上上表的世代倍率；M5 Ultra 256GB 的實測直接沿用（頻寬一樣）。兩者對不上時取保守值，並在備註寫明。照 0xSero 的 inference-optimisation skill 的算法驗算一次：M5 Ultra 在 MLX kernel 測試量到的讀取頻寬至少 1,014 GB/s（LazyLocalLLM，11/18），DeepSeek 每個 token 約讀 10 GB，不開 speculative 的 decode 上限約 100 tok/s <span class="conf" data-c="e">推估</span>。實測 46–52 大約是一半，差距在 engine 的 kernel，不是調設定補得回來的（見到貨後的第 10 步）。Prefill 受算力限制，bit 數影響很小（4-bit 到 8-bit 只差 0–14%）；decode 的話 8-bit 比 4-bit 慢約 20–25%。</p>
   </section>
 
   <section id="models">
@@ -498,6 +498,20 @@
       <li><strong>檢查長 context 的正確性。</strong> 在 256K 和 1M 做 needle／多文件檢索，對照官方 API 的答案。</li>
       <li><strong>接 Claude Code。</strong> 透過 Anthropic Messages API 接 oMLX，看每一輪的 prefix 是否 byte 一致、cache 命中率多少；DeepSeek 再跟 ds4 的 DSML 重播比較。把幾個 Claude Code 請求錄下來，用 deepseek-recipe 轉成 token ID，跟 oMLX 實際送進模型的比對。再讓它讀一個含 <code>&lt;｜DSML｜</code> 字串的檔案，確認不會被當成工具呼叫。Claude Code 用 2.1.328 以上；2.1.330（11/20）修了很長的對話壓縮之後卡住幾分鐘的問題，2.1.331（11/23）起自訂 endpoint 回沒有名稱的 tool call 不再當掉、改成報錯繼續，2.1.332（11/25）起自動壓縮連續失敗後會在 context 上限再壓一次。2.1.332 起 Desktop app 的 Code 分頁會忽略不是 <code>claude</code> 開頭的模型 ID，接本機 server 用 CLI。oMLX 0.8.3 起 Claude Code 的 WebSearch 工具可以在本機模型上用（#5342）。v2.1.323 起不認得的 model ID 一律當 1M context；v2.1.325 起 <code>CLAUDE_CODE_MAX_CONTEXT_TOKENS</code> 對所有不認得的模型 ID 都生效（包括 <code>claude-</code> 開頭的）。兩個主力候選都是原生 1M，<code>CLAUDE_CODE_MAX_CONTEXT_TOKENS</code> 設成 oMLX 實際設定的 context；換成原生 262K 的模型（例如 Qwen）時要跟著改。其他模型也建議先用 <code>/autocompact</code> 設一個較小的壓縮點。oMLX 在 prefill 期間每 10 秒送 ping，但 Claude Code 對只有 ping 的串流大約 10 分鐘就會中止；CED 沒開的冷 1M prompt 會超過，會斷的話設 <code>CLAUDE_STREAM_IDLE_TIMEOUT_MS=1800000</code>（自訂 base URL 要 2.1.328 起才有效）。oMLX 有 <code>count_tokens</code>，<code>/context</code> 的數字是準的。從 oMLX 0.8.1 啟動 Claude Code 時會設 <code>CLAUDE_CODE_AUTO_MODE_SERVER=0</code>，auto mode 才能用在本機模型上（#5409）；自己設 base URL 的話要自己加。再刻意讓一次工具呼叫失敗，看模型會不會進入重試迴圈；0.8.1 起 DeepSeek 寫壞的工具呼叫會回 <code>invalid_tool_call</code>（#5416），看 Claude Code 怎麼處理。</li>
       <li><strong>MiniMax M3.1 Flash 用 oMLX 正式版跑。</strong> 權重 10/23 已釋出、數字已經用 config.json 重算過。0.7.3 正式版（10/31）已含 PR #4777，用官方權重開 1M context 跑第 5 步的 trace。0.8.0 正式版已含 MiniMax 在 M5 上的 prefill 加速（#5084、#5157，M5 Max 切片 64K 的 MoE 層快約 1.75 倍）。M5 Ultra 只有 256GB 的 oQ3e／oQ3.5e 社群上傳（64K 約 830、128K 約 760，0.8.0 以前），官方權重沒有。</li>
+      <li><strong>照 hill-climb 的方法調設定。</strong> 0xSero 的 inference-optimisation skill（11/16）把調 server 速度寫成一套流程：先算上限；一次只改一個設定；照對照、候選、對照的順序各跑至少 6 次取中位數；失敗的也記下來；新的最佳設定要先過長 context 的 needle 才算數。用它的方法就好，不要直接用它的 script，到 11/27 這些修正都還在沒合併的 PR 裡：
+        <ul>
+          <li><code>bench.py</code> 在 oMLX 上把壞掉的輸出（64 個 <code>!</code>）算成 863,388 tok/s，還記成正常（PR #9）。</li>
+          <li>它用每個字 1.6 token 估 prompt 長度，實際的 prompt 和 needle 都偏短（PR #11）。</li>
+          <li><code>queue.sh</code> 要用的 <code>flock</code>、<code>setsid</code> macOS 都沒有，記憶體監測的 <code>mem.sh</code> 只支援 Linux 和 docker。</li>
+        </ul>
+        先把對照組連跑 10 次以上量出雜訊：有人在 M4 Max 上什麼都沒改連跑 45 次，有 35% 的情況下中間那次贏過前後兩次（PR #11），所以候選要贏超過雜訊才算。這裡要比的設定：
+        <ul>
+          <li>MTP 深度 3 對 5：用重播的 Claude Code 回合量。PR #19 在 llama.cpp 上量到，照抄程式碼的輸出用深度 5 快 15–22%，重播 Claude Code 回合時 4、5 都跟 3 差不多。oMLX 0.8.3 改預設 5 的依據是 code prompt。</li>
+          <li>A8 開、關：用 token-forcing 或 greedy 比對量品質。</li>
+          <li>Engram 放 RAM 或 SSD。</li>
+          <li>KV 用 bf16 或 8-bit。</li>
+        </ul>
+        32K–195K 的 prefill 為什麼分快、慢兩群，也用同樣的交錯對照在自己的機器上查。它的測試沒有第二輪 prefix cache 命中的首字時間，也沒有重播 agent 流量，這兩項要自己加。有人在 M5 Ultra 512GB 上用 mlx-lm 跑 Qwen3.8-27B，它清單上的設定沒有一項有用；Mac 上大的進步都來自換 engine 或 drafter，不要期待調設定能讓 decode 翻倍。</li>
     </ol>
   </section>
 
@@ -524,6 +538,16 @@
 
   <section id="changelog">
     <h2>更新紀錄</h2>
+    <h3>2026-11-27</h3>
+    <ul class="plain">
+      <li><strong>0xSero 的 hill-climb skill。</strong>讀過 inference-optimisation skill（sybil-solutions，11/16）的全文和它的 issue、PR。
+        <ul>
+          <li>到貨後的步驟加上第 10 步：照它的方法調設定，但它的 script 在 Mac 上有 bug，修正都還沒合併。</li>
+          <li>「速度怎麼估」補上用它的算法算的 DeepSeek decode 上限：約 100 tok/s，實測大約一半。</li>
+          <li>3060 Ti 分頁的掃參數步驟也改成照它的方法。</li>
+        </ul>
+        主力配置和速度推估都沒變。研究筆記在 <code>research_notes/2026-11-27 0xSero hill-climb skill/</code>。</li>
+    </ul>
     <h3>2026-11-26</h3>
     <ul class="plain">
       <li><strong>新增 benchmark 門檻，主力候選剩兩個。</strong>放得下（≥ 4-bit、≥ 256K）、DeepSWE v1.1 自報 ≥ 70、第三方 agentic 分數不低於領先者的一半，三關都過才列入。DeepSeek 和 MiniMax 留下；GLM-5.3-Flash（63.4）和 Qwen3.8-Flash-Next（58.7）移出主力，GLM 留作備援。它們的量化和速度明細從 <code>data.js</code> 拿掉，留在 GitHub Pages repo 的歷史裡。Server 表也拿掉 GLM、Qwen 兩欄。</li>
@@ -615,7 +639,7 @@
 
   <section id="sources">
     <h2>來源</h2>
-    <p class="measure">研究日期為 2026-10-20，2026-10-23、2026-10-25、2026-10-29、2026-10-31、2026-11-11、2026-11-12、2026-11-19、2026-11-21 更新。信心標記：<span class="conf" data-c="c">已確認</span> 是官方或一手來源，<span class="conf" data-c="m">實測</span> 是公開的實測，<span class="conf" data-c="r">社群回報</span> 是社群或廠商自己公布的數字，<span class="conf" data-c="e">推估</span> 是這頁自己換算的。</p>
+    <p class="measure">研究日期為 2026-10-20，2026-10-23、2026-10-25、2026-10-29、2026-10-31、2026-11-11、2026-11-12、2026-11-19、2026-11-21、2026-11-26、2026-11-27 更新。信心標記：<span class="conf" data-c="c">已確認</span> 是官方或一手來源，<span class="conf" data-c="m">實測</span> 是公開的實測，<span class="conf" data-c="r">社群回報</span> 是社群或廠商自己公布的數字，<span class="conf" data-c="e">推估</span> 是這頁自己換算的。</p>
     <div id="source-list" class="source-list"></div>
   </section>
 
@@ -1410,7 +1434,7 @@ ANTHROPIC_BASE_URL=http://127.0.0.1:8000 claude</code></pre>
   <main id="sff-main">
 
   <header id="sff-summary" class="hero">
-    <p class="hero-meta">整理於 2026 年 11 月 12 日，11 月 19 日、<time datetime="2026-11-26">11 月 26 日</time>更新。這個分頁評估手上那台 Windows 小機殼：Ryzen 5 3600X、16GB DDR4、RTX 3060 Ti 8GB。主機板只有兩個記憶體插槽，這頁以現有規格為準，不假設升級。它取代 10/26 的附錄頁 <code>windows-3060ti.html</code>。M5 Ultra 的規劃見 <a href="#mac">M5 Ultra 512GB 分頁</a></p>
+    <p class="hero-meta">整理於 2026 年 11 月 12 日，11 月 19 日、11 月 26 日、<time datetime="2026-11-27">11 月 27 日</time>更新。這個分頁評估手上那台 Windows 小機殼：Ryzen 5 3600X、16GB DDR4、RTX 3060 Ti 8GB。主機板只有兩個記憶體插槽，這頁以現有規格為準，不假設升級。它取代 10/26 的附錄頁 <code>windows-3060ti.html</code>。M5 Ultra 的規劃見 <a href="#mac">M5 Ultra 512GB 分頁</a></p>
     <h1>RTX 3060 Ti 小機殼<br>現有規格能做什麼</h1>
     <p class="lead">
       這台撐不起 Claude Code 的主力後端，Mac 分頁追蹤的大模型也都跑不實用。它能做兩件事。M5 Ultra 到貨前，用 llama.cpp 跑 <strong>Qwen3.6-35B-A3B</strong> 的 3-bit 版，當輕量的 coding agent 和 32K–64K 的文件問答：experts 大部分放在 RAM，推估 decode 20–26 tok/s、prefill 350–1,000 tok/s。到貨後改當 RAG 的批次前處理機，跑 OCR、文件解析和大量 embedding，把吃 GPU 的批次工作從 Mac 移走。限制同時卡在 16GB RAM 和 8GB 顯存，而且 3600X 沒有內顯，螢幕和 Windows 桌面還要從顯卡吃掉約 1GB。
@@ -1595,7 +1619,12 @@ ANTHROPIC_BASE_URL=http://127.0.0.1:8000 claude</code></pre>
       <li><strong>關掉 Sysmem Fallback。</strong>NVIDIA 控制面板 › 管理 3D 設定 › 程式設定，加入 <code>llama-server.exe</code>，把「CUDA - Sysmem Fallback Policy」改成「Prefer No Sysmem Fallback」。預設會在顯存用完時改用系統記憶體，超出約 100MB 就靜靜慢 3–6 倍；關掉之後溢位會直接 OOM，比較容易發現。<code>--fit</code> 只在載入時檢查，執行中溢位一樣會掉速。</li>
       <li><strong>騰出顯存和 RAM。</strong>能不接螢幕就不接，用 SSH 或遠端桌面管理；關掉瀏覽器和其他程式的硬體加速。pagefile 放在 NVMe 上，系統管理或固定 16–32GB，初始大小要夠大。載入方式用 <code>-lm</code>（<code>--no-mmap</code>、<code>--mlock</code> 已經拿掉了）。預設 <code>auto</code> 就是 mmap；<code>-lm dio</code> 在 Windows 上 11/09 起才真的不經過 file cache。llama-bench 時兩種都量：mmap 開機後的第一個請求可能很慢（6GB 卡在 Linux 上實測，冷 mmap 只有 0.035 tok/s），dio 只把 CPU 端約 8.7GB 的 experts 讀進 RAM，但那是私有記憶體，pagefile 要夠大。</li>
       <li><strong>裝 llama.cpp。</strong>從 GitHub release 下載 b12532 以後的 <code>win-cuda-12.4-x64</code> 或 <code>win-cuda-13.5-x64</code>（v1.0.0 之後；b12391 起含 Qwen3 的 tool call 修正），加上對應的 cudart zip，兩包都含 sm_86。</li>
-      <li><strong>用 llama-bench 掃參數。</strong>下載 Unsloth 的 UD-IQ3_XXS，從 <code>--n-cpu-moe 34</code> 往下掃，找到不溢位的最小值，再試 <code>-ub</code> 512、1024、2048。量 4K、32K、64K 的 prefill 和 decode，把數字填回這頁。也試一組「experts 全放 CPU（<code>--n-cpu-moe 99</code>）加 <code>--moe-cache-mib 2500 --moe-cache-cpu-share 0.95</code>」，跟固定 <code>--n-cpu-moe 30</code> 比 decode；<code>scripts/moe-cache-tune.py</code> 在 Windows 上會當掉（#32041），11/25 由 #32080 修好，但 11/26 最新的 b12728 還不含這個 commit；等下一個 b-build，之前先手動掃。</li>
+      <li><strong>用 llama-bench 掃參數。</strong>下載 Unsloth 的 UD-IQ3_XXS，從 <code>--n-cpu-moe 34</code> 往下掃，找到不溢位的最小值，再試 <code>-ub</code> 512、1024、2048。量 4K、32K、64K 的 prefill 和 decode，把數字填回這頁。也試一組「experts 全放 CPU（<code>--n-cpu-moe 99</code>）加 <code>--moe-cache-mib 2500 --moe-cache-cpu-share 0.95</code>」，跟固定 <code>--n-cpu-moe 30</code> 比 decode；<code>scripts/moe-cache-tune.py</code> 在 Windows 上會當掉（#32041），11/25 由 #32080 修好，但 11/26 最新的 b12728 還不含這個 commit；等下一個 b-build，之前先手動掃。
+        <ul>
+          <li><strong>怎麼比。</strong>照 0xSero 的 inference-optimisation skill 的方法：一次只改一個參數，照對照、候選、對照的順序各跑至少 6 次取中位數，候選要贏過前後兩次對照、而且超過雜訊才算。它的 <code>bench.py</code> 可以在 Mac 上跑，直接打這台的 llama-server。它在 macOS 上有幾個 bug（見 <a href="#checklist">Mac 分頁到貨後的第 10 步</a>），到 11/27 修正都還沒合併，結果要看實際輸出，不要只看數字。</li>
+          <li><strong>可以參考的數字。</strong>PR #20 在兩張 RTX 3060 12GB 上跑同一個模型、experts 放 RAM：llama.cpp 從 v0.7.0 升到 11/22 的 8d60873（比上一步的 b12532 新），再把 <code>--fit-target</code> 從 1024 降到 512，decode +8%，prefill 4K +26%、32K +20%。<code>-ub 1024</code> 讓 prefill +15–16%，但放得進顯卡的 experts 變少，decode −6% 到 −10%。KV 改 q4_0 不划算，MTP 2 個 draft 在長 context 慢 10%。這頁用的是 <code>--n-cpu-moe</code>，不是 auto-fit，卡也只有一張 8GB，數字不能直接搬。</li>
+          <li><strong>KV 的 q8_0 和 f16 也各量一次。</strong>這個模型 40 層裡只有 10 層有 KV：skill 的 lever 清單有一筆 KV 層很少的模型改 q8_0 之後，decode 從 45.4 掉到 27.0；PR #16 在兩張 3060 上同類的模型卻沒有差別。64K 的 f16 KV 比 q8_0 多約 0.6GB，大約少放兩層 experts。</li>
+        </ul></li>
       <li><strong>起 server。</strong><code>llama-server -m Qwen3.6-35B-A3B-UD-IQ3_XXS.gguf --alias qwen3.6-35b-a3b --host 0.0.0.0 --port 8080 --api-key &lt;自訂&gt; -ngl 99 --n-cpu-moe 30 -c 65536 -ctk q8_0 -ctv q8_0 -np 1 -b 2048 -ub 2048 --ctx-checkpoints 12 --cache-ram 2048 --chat-template-file &lt;修過的 Qwen 模板&gt;</code>。預設只聽 127.0.0.1，不加 <code>--host</code> 的話 Mac 連不進來；Windows 防火牆要開 8080。<code>-np 1</code> 很重要，預設的多個 slot 會把 KV 乘好幾倍。先從終端機手動啟動：Windows 會降低 Task Scheduler 和服務啟動的程式的磁碟優先權，Strata 實測讀模型因此慢約 15 倍。</li>
       <li><strong>接 Claude Code。</strong>Claude Code 跑在 Mac 上：<code>ANTHROPIC_BASE_URL=http://&lt;這台 IP&gt;:8080</code>、<code>ANTHROPIC_AUTH_TOKEN=&lt;上面的 key&gt;</code>、<code>ANTHROPIC_MODEL=qwen3.6-35b-a3b</code>、<code>CLAUDE_CODE_MAX_CONTEXT_TOKENS=65536</code>、<code>CLAUDE_CODE_ATTRIBUTION_HEADER=0</code>。背景請求也要指到同一個 ID（<code>ANTHROPIC_DEFAULT_HAIKU_MODEL</code>），否則會送出 Claude 的模型名稱。先用單檔修改的小任務測模板和工具呼叫。</li>
       <li><strong>顧散熱。</strong>長 prefill 和批次 OCR 都是滿載工作。整機峰值約 330–360W，SFX 電源要 450W 以上。可以用 <code>nvidia-smi -pl 170</code>（約 85%）換溫度，decode 幾乎不受影響：RTX 3090 從 350W 降到 250W，速度只從 32.0 變 31.7 tok/s，prefill 會慢一些。這個指令要系統管理員權限，重開機後會還原。</li>
@@ -1619,6 +1648,10 @@ ANTHROPIC_BASE_URL=http://127.0.0.1:8000 claude</code></pre>
 
   <section id="sff-changelog">
     <h2>更新紀錄</h2>
+    <h3>2026-11-27</h3>
+    <ul class="plain">
+      <li><strong>掃參數改成照 hill-climb 的方法。</strong>設定步驟 5 補上三件事：0xSero 的 inference-optimisation skill 的比較方法；PR #20 在兩張 RTX 3060 上跑 Qwen3.6-35B-A3B 量到的 <code>--fit-target</code>、<code>-ub</code>、KV、MTP 數字；KV 的 q8_0 和 f16 各量一次。推薦和速度推估都沒變。研究筆記在 <code>research_notes/2026-11-27 0xSero hill-climb skill/</code>。</li>
+    </ul>
     <h3>2026-11-26</h3>
     <ul class="plain">
       <li><strong>新增 Ternary Bonsai 2.5 27B 一列。</strong>Qwen3.8-27B 壓成 1.76 bpw 的 5.93 GB，放得進 8GB 卡，廠商自報 SWE-bench Verified 75.6、DeepSWE 27.0。要用 PrismML 的 llama.cpp fork（有 Windows CUDA 打包版），這台沒有數字，分數也沒有獨立重現，列「值得試」。推薦仍是 Qwen3.6-35B-A3B UD-IQ3_XXS。</li>
@@ -1651,7 +1684,7 @@ ANTHROPIC_BASE_URL=http://127.0.0.1:8000 claude</code></pre>
 
   <section id="sff-sources">
     <h2>來源</h2>
-    <p class="measure">研究日期為 2026-11-12，2026-11-19、2026-11-26 更新。GitHub 的 issue、PR 狀態和 HF 的檔案大小都是查閱當天的。硬體規格是使用者提供的。信心標記：<span class="conf" data-c="c">已確認</span> 是官方或一手來源，<span class="conf" data-c="m">實測</span> 是附完整條件的公開實測，<span class="conf" data-c="r">社群回報</span> 是社群自己公布、沒附完整條件的數字，<span class="conf" data-c="e">推估</span> 是這個分頁自己換算的。</p>
+    <p class="measure">研究日期為 2026-11-12，2026-11-19、2026-11-26、2026-11-27 更新。GitHub 的 issue、PR 狀態和 HF 的檔案大小都是查閱當天的。硬體規格是使用者提供的。信心標記：<span class="conf" data-c="c">已確認</span> 是官方或一手來源，<span class="conf" data-c="m">實測</span> 是附完整條件的公開實測，<span class="conf" data-c="r">社群回報</span> 是社群自己公布、沒附完整條件的數字，<span class="conf" data-c="e">推估</span> 是這個分頁自己換算的。</p>
     <div class="source-list">
       <div>
         <h3>模型</h3>
@@ -1689,6 +1722,9 @@ ANTHROPIC_BASE_URL=http://127.0.0.1:8000 claude</code></pre>
           <li><a href="https://github.com/vllm-project/vllm/issues/60599" rel="noopener">vLLM #60599：embedding 和 chat 同時跑的干擾</a></li>
           <li><a href="https://github.com/sybil-solutions/local-ai-registry/pull/280" rel="noopener">local-ai-registry #280：RTX 3060 Ti、24GB RAM 跑 Qwen3.6（2026-10-15）</a></li>
           <li><a href="https://github.com/sybil-solutions/local-ai-registry/pull/185" rel="noopener">local-ai-registry #185：RTX 3050 6GB 跑 Qwen3.6（2026-10-07）</a></li>
+          <li><a href="https://github.com/sybil-solutions/inference-optimisation-skill" rel="noopener">0xSero 的 inference-optimisation skill（11/16）</a></li>
+          <li><a href="https://github.com/sybil-solutions/inference-optimisation-skill/pull/20" rel="noopener">inference-optimisation-skill #20：兩張 RTX 3060 跑 Qwen3.6-35B-A3B，experts 放 RAM</a></li>
+          <li><a href="https://github.com/sybil-solutions/inference-optimisation-skill/pull/16" rel="noopener">inference-optimisation-skill #16：KV 層很少的模型，q8_0 KV 沒有變慢</a></li>
           <li><a href="https://github.com/Niko1221/Strata/releases/tag/v0.2.14" rel="noopener">Strata 0.2.14：RTX 3060 Ti 的 Qwen3.6 數字（2026-11-15）</a></li>
         </ul>
       </div>
